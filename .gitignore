@@ -1,0 +1,5 @@
+*.un~
+*.root
+data
+proof_of_concept/dit
+proof_of_concept/to_columns
