@@ -104,7 +104,7 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
     std::vector<GzipInputStream*> zd, zm;
     std::vector<CodedInputStream*> cd, cm;
 
-#if 1 // this version seems to perform better in tests so far. 
+#if 1 // this version seems to perform better for my work machine and the big laptop
     std::cerr << "Loading column data..." << std::endl;
     for (int i = 0; i < dit_files.size(); i++) {
         dit.push_back(copy_file(dit_files[i]));
@@ -116,7 +116,7 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
         cd.push_back(new CodedInputStream(zd[i]));
         cm.push_back(new CodedInputStream(zm[i]));
     }
-#else
+#else // .. but this one is better on the netbook (but takes more memory)
     std::cerr << "Loading and decompressing column data..." << std::endl;
     for (int i = 0; i < dit_files.size(); i++) {
         dit.push_back(copy_file_decomp(dit_files[i]));
