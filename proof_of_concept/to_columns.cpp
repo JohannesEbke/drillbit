@@ -54,6 +54,14 @@ void write_out_type(CodedOutputStream &o, std::string v) {
     o.WriteVarint32(v.size());
     o.WriteString(v);
 }
+void write_tag(CodedOutputStream &o, Bool_t v) {o.WriteVarint32(v);}
+void write_tag(CodedOutputStream &o, int v) {o.WriteVarint32(v);}
+void write_tag(CodedOutputStream &o, short v) {o.WriteVarint32(v);}
+void write_tag(CodedOutputStream &o, unsigned int v) {o.WriteVarint32(v);}
+void write_tag(CodedOutputStream &o, unsigned short v) {o.WriteVarint32(v);}
+void write_tag(CodedOutputStream &o, float v) { o.WriteVarint32(v); }
+void write_tag(CodedOutputStream &o, double v) { o.WriteVarint32(v); }
+void write_tag(CodedOutputStream &o, std::string v) { o.WriteVarint32(v); }
 
 
 template <typename T>
@@ -168,6 +176,7 @@ void dump_required_lvl3(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOu
 template <typename T>
 void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     write_out_32(o2, level);
+    write_tag<T>(o2);
     switch (level) {
         case 0:
             dump_required_lvl0<T>(tree, leaf, o);

@@ -58,7 +58,16 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
             cm[i]->ReadVarint32(&level);
         }
     }
-
+    for (int i = 0; i < dit_files.size(); i++) {
+        uint32_t v;
+        while(cm[i]->ReadRaw(&v, sizeof(v))){
+            write(1, &v, sizeof(v));
+        };
+        while(cd[i]->ReadRaw(&v, sizeof(v))){
+            write(1, &v, sizeof(v));
+        };
+    }
+#if 0
     int event_number = 0;
     while(event_number < 10000) {
         for (int i = 0; i < dit_files.size(); i++) {
@@ -85,6 +94,7 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
         std::cerr << event_number << std::endl;
         event_number++;
     }
+#endif
     
     //for (int i = 0; i < dit_files.size(); i++) {
         //free(dit[i]);
