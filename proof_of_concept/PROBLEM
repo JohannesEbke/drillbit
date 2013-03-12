@@ -1,0 +1,26 @@
+Bad case 1:
+- ulimit is 1000 fds
+- 100k columns
+- each column is 1 TB
+- blocksize is max
+- access is via some remote IO
+
+Bad case 2:
+- ulimit is 1000 fds
+- 100k columns
+- each column is 16k
+- blocksize is min
+- access is via some remote IO
+
+
+Solution:
+- split the cache space between columns
+- keep large-density files open for reading
+
+example: 1G cache; 100k columns -> 10k storage
+that is probably at least 10 events with 1k/event -> event size 100MB! (ILC?)
+
+example: 1G cache can cache 10000 events from a d3pd
+
+
+root ntuple timing: 32 seconds with hot cache
