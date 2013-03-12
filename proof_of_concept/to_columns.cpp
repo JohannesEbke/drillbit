@@ -13,12 +13,14 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/descriptor.h>
 
 using namespace std;
 
 using google::protobuf::io::FileOutputStream;
 using google::protobuf::io::GzipOutputStream;
 using google::protobuf::io::CodedOutputStream;
+using google::protobuf::FieldDescriptor;
 
 std::string remove_vector(std::string type) {
     std::string res = type.substr(7, type.size()-8); // 7 = len("vector<"), 8 is that - ">"
@@ -54,15 +56,30 @@ void write_out_type(CodedOutputStream &o, std::string v) {
     o.WriteVarint32(v.size());
     o.WriteString(v);
 }
-void write_tag(CodedOutputStream &o, Bool_t v) {o.WriteVarint32(v);}
-void write_tag(CodedOutputStream &o, int v) {o.WriteVarint32(v);}
-void write_tag(CodedOutputStream &o, short v) {o.WriteVarint32(v);}
-void write_tag(CodedOutputStream &o, unsigned int v) {o.WriteVarint32(v);}
-void write_tag(CodedOutputStream &o, unsigned short v) {o.WriteVarint32(v);}
-void write_tag(CodedOutputStream &o, float v) { o.WriteVarint32(v); }
-void write_tag(CodedOutputStream &o, double v) { o.WriteVarint32(v); }
-void write_tag(CodedOutputStream &o, std::string v) { o.WriteVarint32(v); }
 
+template<typename T> FieldDescriptor::Type get_field_type() {
+    if (std::is_same<T, int16_t>::value) {
+        return FieldDescriptor::TYPE_INT32;
+    } else if (std::is_same<T, uint16_t>::value) {
+        return FieldDescriptor::TYPE_UINT32;
+    } else if (std::is_same<T, int32_t>::value) {
+        return FieldDescriptor::TYPE_INT32;
+    } else if (std::is_same<T, uint32_t>::value) {
+        return FieldDescriptor::TYPE_UINT32; 
+    } else if (std::is_same<T, int64_t>::value) {
+        return FieldDescriptor::TYPE_INT64;
+    } else if (std::is_same<T, uint64_t>::value) {
+        return FieldDescriptor::TYPE_UINT64;
+    } else if (std::is_same<T, float>::value) {
+        return FieldDescriptor::TYPE_FLOAT;
+    } else if (std::is_same<T, double>::value) {
+        return FieldDescriptor::TYPE_DOUBLE;
+    } else if (std::is_same<T, bool>::value) {
+        return FieldDescriptor::TYPE_BOOL;
+    } else if (std::is_same<T, std::string>::value) {
+        return FieldDescriptor::TYPE_STRING;
+    }
+}
 
 template <typename T>
 void dump_required_lvl0(TTree * tree, TLeaf& leaf, CodedOutputStream &o) {
@@ -175,8 +192,8 @@ void dump_required_lvl3(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOu
 
 template <typename T>
 void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
-    write_out_32(o2, level);
-    write_tag<T>(o2);
+    o2.WriteVarint32(level);
+    o2.WriteVarint32(get_field_type<T>());
     switch (level) {
         case 0:
             dump_required_lvl0<T>(tree, leaf, o);
@@ -213,55 +230,60 @@ void dump_tree(TTree * tree) {
         auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd != -1);
         FileOutputStream fstream(fd);
-        fstream.SetCloseOnDelete(true);
         GzipOutputStream zstream(&fstream, options);
-        CodedOutputStream o(&zstream);
+
 
         // Open meta file
         std::string mfn = fn + "m";
         auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(mfd != -1);
         FileOutputStream meta_fstream(mfd);
-        meta_fstream.SetCloseOnDelete(true);
         GzipOutputStream meta_zstream(&meta_fstream, options);
-        CodedOutputStream o2(&meta_zstream);
+        { // Coded stream block 
+            CodedOutputStream o(&zstream);
+            CodedOutputStream o2(&meta_zstream);
 
-        // determine level and type name
-        int level = 0;
-        std::string tn = l->GetTypeName();
-        while (tn.substr(0,6) == "vector") {
-            level = level + 1;
-            tn = remove_vector(tn);
-        }
+            // determine level and type name
+            int level = 0;
+            std::string tn = l->GetTypeName();
+            while (tn.substr(0,6) == "vector") {
+                level = level + 1;
+                tn = remove_vector(tn);
+            }
 
-        if (tn == "double") {
-            dump_required<double>(level, tree, *l, o, o2);
-        } else if (tn == "float") {
-            dump_required<float>(level, tree, *l, o, o2);
-        } else if (tn == "int") {
-            dump_required<int>(level, tree, *l, o, o2);
-        } else if (tn == "short") {
-            dump_required<short>(level, tree, *l, o, o2);
-        } else if (tn == "unsigned int") {
-            dump_required<unsigned int>(level, tree, *l, o, o2);
-        } else if (tn == "unsigned short") {
-            dump_required<unsigned short>(level, tree, *l, o, o2);
-        } else if (tn == "Float_t") {
-            dump_required<Float_t>(level, tree, *l, o, o2);
-        } else if (tn == "Bool_t") {
-            dump_required<Bool_t>(level, tree, *l, o, o2);
-        } else if (tn == "Double_t") {
-            dump_required<Double_t>(level, tree, *l, o, o2);
-        } else if (tn == "Int_t") {
-            dump_required<Int_t>(level, tree, *l, o, o2);
-        } else if (tn == "UInt_t") {
-            dump_required<UInt_t>(level, tree, *l, o, o2);
-        } else if (tn == "string") {
-            dump_required<std::string>(level, tree, *l, o, o2);
-        } else {
-            std::cerr << "Unknown branch type: " << tn << std::endl;
-            assert(false);
+            if (tn == "double") {
+                dump_required<double>(level, tree, *l, o, o2);
+            } else if (tn == "float") {
+                dump_required<float>(level, tree, *l, o, o2);
+            } else if (tn == "int") {
+                dump_required<int>(level, tree, *l, o, o2);
+            } else if (tn == "short") {
+                dump_required<short>(level, tree, *l, o, o2);
+            } else if (tn == "unsigned int") {
+                dump_required<unsigned int>(level, tree, *l, o, o2);
+            } else if (tn == "unsigned short") {
+                dump_required<unsigned short>(level, tree, *l, o, o2);
+            } else if (tn == "Float_t") {
+                dump_required<Float_t>(level, tree, *l, o, o2);
+            } else if (tn == "Bool_t") {
+                dump_required<Bool_t>(level, tree, *l, o, o2);
+            } else if (tn == "Double_t") {
+                dump_required<Double_t>(level, tree, *l, o, o2);
+            } else if (tn == "Int_t") {
+                dump_required<Int_t>(level, tree, *l, o, o2);
+            } else if (tn == "UInt_t") {
+                dump_required<UInt_t>(level, tree, *l, o, o2);
+            } else if (tn == "string") {
+                dump_required<std::string>(level, tree, *l, o, o2);
+            } else {
+                std::cerr << "Unknown branch type: " << tn << std::endl;
+                assert(false);
+            }
         }
+        meta_zstream.Close();
+        zstream.Close();
+        meta_fstream.Close();
+        fstream.Close();
     }
 }
 

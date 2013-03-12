@@ -11,12 +11,17 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/wire_format_lite.h>
 
 using namespace std;
 
+using google::protobuf::io::FileInputStream;
 using google::protobuf::io::ArrayInputStream;
 using google::protobuf::io::GzipInputStream;
 using google::protobuf::io::CodedInputStream;
+using google::protobuf::FieldDescriptor;
+using google::protobuf::internal::WireFormatLite;
 
 std::pair<void*, size_t> copy_file(std::string fn) {
     int fd = open(fn.c_str(), O_RDONLY);
@@ -32,11 +37,51 @@ std::pair<void*, size_t> copy_file(std::string fn) {
     return make_pair(target, size);
 };
 
+std::pair<void*, size_t> copy_file_decomp(std::string fn) {
+    int fd = open(fn.c_str(), O_RDONLY);
+    assert(fd != -1);
+    int bytes_read = 0;
+    int bufsize = 1024*1024;
+    void * target = malloc(bufsize);
+    {
+        FileInputStream fstream(fd);
+        GzipInputStream zstream(&fstream);
+        const void * data = NULL;
+        int size = 0;
+        while (zstream.Next(&data, &size)) {
+            if (bytes_read + size > bufsize) {
+                while (bytes_read + size > bufsize) bufsize *= 2;
+                target = realloc(target, bufsize);
+            };
+            memcpy((uint8_t*)target + bytes_read, data, size);
+            bytes_read += size;
+        }
+    }
+    close(fd);
+    target = realloc(target, bytes_read);
+    return make_pair(target, bytes_read);
+};
+
+void deal_with_data(int i, CodedInputStream * in, WireFormatLite::WireType wiretype) {
+    switch (wiretype) {
+        case WireFormatLite::WIRETYPE_VARINT:
+            uint32_t v;
+            assert(in->ReadVarint32(&v));
+            //std::cout << i << ":" << v << std::endl;
+            write(1, &i, sizeof(int));
+            write(1, &v, sizeof(v));
+            break;
+    }
+}
+
 void compose_event(const std::vector<std::string>& dit_files, const std::vector<std::string>& ditm_files) {
     std::vector<std::pair<void*,size_t> > dit, ditm;
     std::vector<ArrayInputStream*> id, im;
     std::vector<GzipInputStream*> zd, zm;
     std::vector<CodedInputStream*> cd, cm;
+
+#if 1 // this version seems to perform better in tests so far. 
+    std::cerr << "Loading column data..." << std::endl;
     for (int i = 0; i < dit_files.size(); i++) {
         dit.push_back(copy_file(dit_files[i]));
         ditm.push_back(copy_file(ditm_files[i]));
@@ -47,17 +92,41 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
         cd.push_back(new CodedInputStream(zd[i]));
         cm.push_back(new CodedInputStream(zm[i]));
     }
-
-
+#else
+    std::cerr << "Loading and decompressing column data..." << std::endl;
+    for (int i = 0; i < dit_files.size(); i++) {
+        dit.push_back(copy_file_decomp(dit_files[i]));
+        ditm.push_back(copy_file_decomp(ditm_files[i]));
+        id.push_back(new ArrayInputStream(dit[i].first, dit[i].second));
+        im.push_back(new ArrayInputStream(ditm[i].first, ditm[i].second));
+        cd.push_back(new CodedInputStream(id[i]));
+        cm.push_back(new CodedInputStream(im[i]));
+    }
+#endif
+    std::cerr << "Looking up column metadata..." << std::endl;
     std::vector<uint32_t> levels;
+    std::vector<uint32_t> next_event_count;
+    std::vector<uint32_t> last_tags;
+    std::vector<FieldDescriptor::Type> types;
     for (int i = 0; i < dit_files.size(); i++) {
         uint32_t level = 0;
-        cm[i]->ReadVarint32(&level);
+        std::cout << dit_files[i] << std::endl;
+        assert(cm[i]->ReadVarint32(&level));
         levels.push_back(level);
+        uint32_t field_type;
+        assert(cm[i]->ReadVarint32(&field_type));
+        types.push_back(FieldDescriptor::Type(field_type));
+        // push back last tag
+        next_event_count.push_back(0);
         if (level > 0) {
-            cm[i]->ReadVarint32(&level);
+            assert(cm[i]->ReadVarint32(&level));
+            last_tags.push_back(level);
+        } else {
+            last_tags.push_back(0);
         }
     }
+#if 0
+    std::cerr << "Just dumping the data out there in byte-sized chunks..." << std::endl;
     for (int i = 0; i < dit_files.size(); i++) {
         uint32_t v;
         while(cm[i]->ReadRaw(&v, sizeof(v))){
@@ -67,35 +136,61 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
             write(1, &v, sizeof(v));
         };
     }
-#if 0
-    int event_number = 0;
-    while(event_number < 10000) {
+#else
+    std::cerr << "Run over all events and collate them..." << std::endl;
+    for (int event_number = 0; event_number < 10000; event_number++) {
+        //std::cerr << "Event start..." << std::endl;
+        //std::cout << event_number << std::endl;
+        //std::cerr << event_number << std::endl;
         for (int i = 0; i < dit_files.size(); i++) {
+
+            auto wiretype = WireFormatLite::WireTypeForFieldType(WireFormatLite::FieldType(types[i]));
+            
             if (levels[i] == 0) {
-                uint32_t v;
-                cd[i]->ReadVarint32(&v);
-                write(1, &i, sizeof(int));
-                write(1, &v, sizeof(v));
+                //std::cerr << "Level 0" << std::endl;
+                deal_with_data(i, cd[i], wiretype);
             } else if (levels[i] == 1) {
+                std::cout << "Field "<< dit_files[i] << std::endl;
+                bool first = true;
                 while (true) {
-                    uint32_t dl_rl;
-                    cm[i]->ReadVarint32(&dl_rl);
-                    if (dl_rl % 2 != 0) {
-                        uint32_t v;
-                        cd[i]->ReadVarint32(&v);
-                        write(1, &i, sizeof(int));
-                        write(1, &v, sizeof(v));
-                    } else if (dl_rl == 0) {
-                        break;
+                    uint32_t dl_rl = last_tags[i]; // look at the last read tag
+
+#if 0
+                    if (first and (dl_rl == 1 || dl_rl == 0)) {
+                        std::cout << "NEXT EVENT " << dl_rl << std::endl;
+                        next_event_count[i]++;
                     }
+                    assert(next_event_count[i] == event_number+1);
+#endif
+
+                    //std::cerr << "DLRL " << dl_rl << std::endl;
+                    if (dl_rl == 0) {
+                        if (first) {
+                            //std::cout << i << ":" << "NULL" << std::endl;
+                            if (event_number != 9999) assert(cm[i]->ReadVarint32(&(last_tags[i]))); // look at the next tag
+                            break; // no fields in this event
+                        } else {
+                            break; // no fields in this event
+                        }
+                    } else if (dl_rl == 1) {
+                        if (first) {
+                            deal_with_data(i, cd[i], wiretype);
+                            if (event_number != 9999) assert(cm[i]->ReadVarint32(&(last_tags[i])));// if not break, look at the next tag
+                        } else {
+                            // more than one field read, but this one belongs to the next event
+                            // - leave tag in place
+                            break;
+                        }
+                    } else if (dl_rl == 3) {
+                        deal_with_data(i, cd[i], wiretype);
+                        if (event_number != 9999) assert(cm[i]->ReadVarint32(&(last_tags[i])));// if not break, look at the next tag
+                    }
+                    first = false;
                 }
             }
         }
-        std::cerr << event_number << std::endl;
-        event_number++;
     }
 #endif
-    
     //for (int i = 0; i < dit_files.size(); i++) {
         //free(dit[i]);
         //free(ditm[i]);

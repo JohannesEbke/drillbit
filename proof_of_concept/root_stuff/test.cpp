@@ -16,7 +16,7 @@ int main() {
     //tree->SetBranchStatus("*", 0);
     //tree->SetBranchStatus("EF_2e11T_medium", 1);
 
-    auto * branch = tree->GetBranch("EF_2e11T_medium");
+    TBranch * branch = tree->GetBranch("EF_2e11T_medium");
     int entries = tree->GetEntries();
     //tree->Draw("EF_2e11T_medium");
     for (int i = 0; i < entries; i++) {
