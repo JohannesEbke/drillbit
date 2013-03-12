@@ -14,6 +14,7 @@
 #include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/descriptor.h>
+#include <google/protobuf/wire_format_lite.h>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ using google::protobuf::io::FileOutputStream;
 using google::protobuf::io::GzipOutputStream;
 using google::protobuf::io::CodedOutputStream;
 using google::protobuf::FieldDescriptor;
+using google::protobuf::internal::WireFormatLite;
 
 std::string remove_vector(std::string type) {
     std::string res = type.substr(7, type.size()-8); // 7 = len("vector<"), 8 is that - ">"
@@ -35,14 +37,10 @@ void write_out_64(CodedOutputStream &o, uint64_t v) {
     o.WriteVarint64(v);
 }
 void write_out_f32(CodedOutputStream &o, float v) {
-    union {float f; uint32_t i;};
-    f = v;
-    o.WriteLittleEndian64(i);
+    o.WriteLittleEndian32(WireFormatLite::EncodeFloat(v));
 }
 void write_out_f64(CodedOutputStream &o, double v) {
-    union {double f; uint64_t i;};
-    f = v;
-    o.WriteLittleEndian64(i);
+    o.WriteLittleEndian64(WireFormatLite::EncodeDouble(v));
 }
 
 void write_out_type(CodedOutputStream &o, Bool_t v) {write_out_32(o, v);}

@@ -78,11 +78,11 @@ void deal_with_data(int i, CodedInputStream * in, WireFormatLite::WireType wiret
             break;
         case WireFormatLite::WIRETYPE_FIXED64:
             assert(in->ReadLittleEndian64(&v64));
-            sum += v64;
+            sum += WireFormatLite::DecodeDouble(v64);
             break;
         case WireFormatLite::WIRETYPE_FIXED32:
             assert(in->ReadLittleEndian32(&v32));
-            sum += v32;
+            sum += WireFormatLite::DecodeFloat(v32);
             break;
         case WireFormatLite::WIRETYPE_LENGTH_DELIMITED:
             assert(in->ReadVarint32(&v32));
