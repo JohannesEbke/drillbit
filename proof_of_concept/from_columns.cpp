@@ -23,6 +23,8 @@ using google::protobuf::io::CodedInputStream;
 using google::protobuf::FieldDescriptor;
 using google::protobuf::internal::WireFormatLite;
 
+uint64_t sum;
+
 std::pair<void*, size_t> copy_file(std::string fn) {
     int fd = open(fn.c_str(), O_RDONLY);
     struct stat buffer;
@@ -63,14 +65,36 @@ std::pair<void*, size_t> copy_file_decomp(std::string fn) {
 };
 
 void deal_with_data(int i, CodedInputStream * in, WireFormatLite::WireType wiretype) {
+    uint32_t v32;
+    uint64_t v64;
+    std::string s;
     switch (wiretype) {
         case WireFormatLite::WIRETYPE_VARINT:
-            uint32_t v;
-            assert(in->ReadVarint32(&v));
+            assert(in->ReadVarint32(&v32));
             //std::cout << i << ":" << v << std::endl;
-            write(1, &i, sizeof(int));
-            write(1, &v, sizeof(v));
+            //write(1, &i, sizeof(int));
+            //write(1, &v, sizeof(v));
+            sum += v32;
             break;
+        case WireFormatLite::WIRETYPE_FIXED64:
+            assert(in->ReadLittleEndian64(&v64));
+            sum += v64;
+            break;
+        case WireFormatLite::WIRETYPE_FIXED32:
+            assert(in->ReadLittleEndian32(&v32));
+            sum += v32;
+            break;
+        case WireFormatLite::WIRETYPE_LENGTH_DELIMITED:
+            assert(in->ReadVarint32(&v32));
+            assert(in->ReadString(&s, v32));
+            sum += v32;
+            break;
+        default:
+        //case WIRETYPE_LENGTH_DELIMITED:
+        //case WIRETYPE_START_GROUP:
+        //case WIRETYPE_END_GROUP:
+            std::cout << "UNKNOWN WIRE TYPE " << wiretype << std::endl;
+            assert(false);
     }
 }
 
@@ -110,7 +134,7 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
     std::vector<FieldDescriptor::Type> types;
     for (int i = 0; i < dit_files.size(); i++) {
         uint32_t level = 0;
-        std::cout << dit_files[i] << std::endl;
+        //std::cout << dit_files[i] << std::endl;
         assert(cm[i]->ReadVarint32(&level));
         levels.push_back(level);
         uint32_t field_type;
@@ -130,10 +154,10 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
     for (int i = 0; i < dit_files.size(); i++) {
         uint32_t v;
         while(cm[i]->ReadRaw(&v, sizeof(v))){
-            write(1, &v, sizeof(v));
+            //write(1, &v, sizeof(v));
         };
         while(cd[i]->ReadRaw(&v, sizeof(v))){
-            write(1, &v, sizeof(v));
+            //write(1, &v, sizeof(v));
         };
     }
 #else
@@ -145,19 +169,24 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
         for (int i = 0; i < dit_files.size(); i++) {
 
             auto wiretype = WireFormatLite::WireTypeForFieldType(WireFormatLite::FieldType(types[i]));
+            int level = levels[i];
             
-            if (levels[i] == 0) {
+            if (level == 0) {
                 //std::cerr << "Level 0" << std::endl;
                 deal_with_data(i, cd[i], wiretype);
-            } else if (levels[i] == 1) {
-                std::cout << "Field "<< dit_files[i] << std::endl;
+            } else if (level > 0) {
+                //std::cout << "Field "<< dit_files[i] << std::endl;
                 bool first = true;
                 while (true) {
                     uint32_t dl_rl = last_tags[i]; // look at the last read tag
+                    uint32_t RL_M = level == 1 ? 2 : 4;
+                    uint32_t rl = dl_rl / RL_M;
+                    uint32_t dl = dl_rl % RL_M;
+                    //std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
 
-#if 0
-                    if (first and (dl_rl == 1 || dl_rl == 0)) {
-                        std::cout << "NEXT EVENT " << dl_rl << std::endl;
+#if 1
+                    if (first and rl == 0) {
+                        //std::cout << "NEXT EVENT " << dl_rl << std::endl;
                         next_event_count[i]++;
                     }
                     assert(next_event_count[i] == event_number+1);
@@ -172,23 +201,24 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
                         } else {
                             break; // no fields in this event
                         }
-                    } else if (dl_rl == 1) {
+                    } else if (rl == 0) {
                         if (first) {
-                            deal_with_data(i, cd[i], wiretype);
+                            if (dl == level) deal_with_data(i, cd[i], wiretype);
                             if (event_number != 9999) assert(cm[i]->ReadVarint32(&(last_tags[i])));// if not break, look at the next tag
                         } else {
                             // more than one field read, but this one belongs to the next event
                             // - leave tag in place
                             break;
                         }
-                    } else if (dl_rl == 3) {
-                        deal_with_data(i, cd[i], wiretype);
+                    } else {
+                        if (dl == level) deal_with_data(i, cd[i], wiretype);
                         if (event_number != 9999) assert(cm[i]->ReadVarint32(&(last_tags[i])));// if not break, look at the next tag
                     }
                     first = false;
                 }
             }
         }
+
     }
 #endif
     //for (int i = 0; i < dit_files.size(); i++) {
@@ -259,6 +289,7 @@ void compose_event(const std::vector<std::string>& dit_files, const std::vector<
 
 
 int main(int argc, const char ** argv) {
+    sum = 0;
     std::vector<std::string> dit_files;
     std::vector<std::string> ditm_files;
     for(int i = 1; i < argc; i++) {
@@ -267,6 +298,7 @@ int main(int argc, const char ** argv) {
         ditm_files.push_back(f+"m");
     }
     compose_event(dit_files, ditm_files);
+    std::cout << sum << std::endl;
     return 0;
 }
     

@@ -37,12 +37,12 @@ void write_out_64(CodedOutputStream &o, uint64_t v) {
 void write_out_f32(CodedOutputStream &o, float v) {
     union {float f; uint32_t i;};
     f = v;
-    write_out_32(o, i);
+    o.WriteLittleEndian64(i);
 }
 void write_out_f64(CodedOutputStream &o, double v) {
     union {double f; uint64_t i;};
     f = v;
-    write_out_64(o, i);
+    o.WriteLittleEndian64(i);
 }
 
 void write_out_type(CodedOutputStream &o, Bool_t v) {write_out_32(o, v);}
