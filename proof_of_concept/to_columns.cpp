@@ -193,6 +193,9 @@ void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, C
 // 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
 
 void dump_tree(TTree * tree) {
+    GzipOutputStream::Options options;
+    options.compression_level = 1;
+
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf* l = (TLeaf*) tree->GetListOfLeaves()->At(li);
 
@@ -201,14 +204,18 @@ void dump_tree(TTree * tree) {
         auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd != -1);
         FileOutputStream fstream(fd);
-        CodedOutputStream o(&fstream);
+        fstream.SetCloseOnDelete(true);
+        GzipOutputStream zstream(&fstream, options);
+        CodedOutputStream o(&zstream);
 
         // Open meta file
         std::string mfn = fn + "m";
         auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(mfd != -1);
         FileOutputStream meta_fstream(mfd);
-        CodedOutputStream o2(&meta_fstream);
+        meta_fstream.SetCloseOnDelete(true);
+        GzipOutputStream meta_zstream(&meta_fstream, options);
+        CodedOutputStream o2(&meta_zstream);
 
         // determine level and type name
         int level = 0;
@@ -246,8 +253,6 @@ void dump_tree(TTree * tree) {
             std::cerr << "Unknown branch type: " << tn << std::endl;
             assert(false);
         }
-        close(mfd);
-        close(fd);
     }
 }
 
