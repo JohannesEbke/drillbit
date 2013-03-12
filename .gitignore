@@ -1,5 +1,10 @@
 *.un~
 *.root
+*.pyc
+.lock*
+.waf*
+build
 data
 proof_of_concept/dit
 proof_of_concept/to_columns
+proof_of_concept/from_columns
