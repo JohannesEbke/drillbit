@@ -90,9 +90,9 @@ template<typename T> FieldDescriptor::Type get_field_type() {
 }
 
 template <typename T>
-void dump_required_lvl0(TTree * tree, TLeaf& leaf, CodedOutputStream &o) {
+void dump_required_lvl0(TTree *tree, TLeaf &leaf, CodedOutputStream &o) {
     std::cout << "Dump " << leaf.GetName() << std::endl;
-    auto * branch = leaf.GetBranch();
+    auto *branch = leaf.GetBranch();
 
     T data; 
     tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
@@ -104,13 +104,13 @@ void dump_required_lvl0(TTree * tree, TLeaf& leaf, CodedOutputStream &o) {
 }
 
 template <typename T>
-void dump_required_lvl1(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     std::cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
-    auto * branch = leaf.GetBranch();
+    auto *branch = leaf.GetBranch();
 
-    std::vector<T> * data = NULL;
+    std::vector<T> *data = NULL;
     tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
     int entries = tree->GetEntries();
     for (int i = 0; i < entries; i++) { 
@@ -128,7 +128,7 @@ void dump_required_lvl1(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOu
 }
 
 template <typename T>
-void dump_required_lvl2(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -160,12 +160,12 @@ void dump_required_lvl2(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOu
 }
 
 template <typename T>
-void dump_required_lvl3(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
     std::cout << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
-    auto * branch = leaf.GetBranch();
+    auto *branch = leaf.GetBranch();
 
     std::vector<std::vector<std::vector<T> > > * data = NULL;
     tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
@@ -199,7 +199,7 @@ void dump_required_lvl3(TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOu
 }
 
 template <typename T>
-void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     o2.WriteVarint32(level);
     o2.WriteVarint32(get_field_type<T>());
     switch (level) {
@@ -231,7 +231,7 @@ void dump_tree(TTree *tree, const char *outdir) {
     options.compression_level = 1;
 
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
-        TLeaf* l = (TLeaf*) tree->GetListOfLeaves()->At(li);
+        TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
 
         if (lstat(outdir, NULL) == -1) {
             mkdir(outdir, 0777);
