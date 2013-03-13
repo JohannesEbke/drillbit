@@ -4,6 +4,7 @@
 #include <TChain.h>
 
 #include <iostream>
+#include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -216,7 +217,7 @@ void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, C
 // 'vector<vector<double> >', 'vector<vector<float> >', 'vector<vector<int> >', 'vector<vector<string> >', 
 // 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
 
-void dump_tree(TTree * tree) {
+void dump_tree(TTree * tree, std::string dir) {
     GzipOutputStream::Options options;
     options.compression_level = 1;
 
@@ -224,7 +225,7 @@ void dump_tree(TTree * tree) {
         TLeaf* l = (TLeaf*) tree->GetListOfLeaves()->At(li);
 
         // Open data file
-        std::string fn = std::string("dit/") + l->GetName() + ".dit";
+        std::string fn = dir + l->GetName() + ".dit";
         auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd != -1);
         FileOutputStream fstream(fd);
@@ -285,10 +286,25 @@ void dump_tree(TTree * tree) {
     }
 }
 
-int main() {
-    TFile f("ntup.root");
-    TTree * t = (TTree*) f.Get("photon");
-    dump_tree(t);
+int main(int argc, const char** argv) {
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " <root file> <tree name>" << std::endl;
+        return -1;
+    }
+    TFile f(argv[1]);
+    if (not f.IsOpen()) return -1;
+    TTree * t = (TTree*) f.Get(argv[2]);
+    if (not t) {
+        std::cerr << "Tree '" << argv[2] << " not found!" << std::endl;
+        return -1;
+    }
+    std::stringstream cmd;
+    cmd << "mkdir -p " << argv[1] << "_stripes/" << argv[2] << "/";
+    if (system(cmd.str().c_str()) != 0) {
+        std::cerr << "Can not create directory: " << cmd << std::endl;
+        return -1;
+    }
+    dump_tree(t, std::string(argv[1]) + "_stripes/" + argv[2] + "/");
     return 0;
 }
     
