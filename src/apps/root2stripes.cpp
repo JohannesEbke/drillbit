@@ -203,11 +203,13 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 template <typename T>
 void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     StripeInfo info;
-    info.set_version(1);
+    info.set_stripe_version(1);
+    info.set_level(level);
     info.set_field_type(get_field_type<T>());
+    info.set_root_name(leaf.GetName());
     info.set_root_type(leaf.GetTypeName());
     o2.WriteVarint32(info.ByteSize());
-    info.SerializeToCodedStream(o2);
+    info.SerializeToCodedStream(&o2);
     switch (level) {
         case 0:
             dump_required_lvl0<T>(tree, leaf, o);

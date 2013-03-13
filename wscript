@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-packages = "compiler_c compiler_cxx waf_unit_test gccdeps print_commands protoc why"
+packages = "compiler_c compiler_cxx waf_unit_test gccdeps print_commands protoc why local_rpath"
 
 def options(opt):
     opt.load(packages)
