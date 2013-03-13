@@ -269,7 +269,7 @@ void dump_tree(TTree *tree, const char *outdir) {
                 dump_required<float>(level, tree, *l, o, o2);
             } else if (tn == "int") {
                 dump_required<int>(level, tree, *l, o, o2);
-            } else if (tn == "short") {
+            } else if (tn == "short" || tn == "Short_t") {
                 dump_required<short>(level, tree, *l, o, o2);
             } else if (tn == "unsigned int") {
                 dump_required<unsigned int>(level, tree, *l, o, o2);
