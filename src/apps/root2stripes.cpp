@@ -231,6 +231,10 @@ void dump_tree(TTree * tree) {
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf* l = (TLeaf*) tree->GetListOfLeaves()->At(li);
 
+        if (lstat("dit/", NULL) == -1) {
+            mkdir("dit/", 0777);
+        }
+
         // Open data file
         std::string fn = std::string("dit/") + l->GetName() + ".dit";
         auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
