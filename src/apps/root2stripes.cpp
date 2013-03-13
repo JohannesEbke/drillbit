@@ -338,16 +338,16 @@ void dump_file(const char *filename, const char *treename, const char *outdir) {
     
     if (treename == NULL) {
         if (verbose)
-            printf("Tree not specified, finding largest tree\n");
+            std::cout << "Tree not specified, finding largest tree" << std::endl;
         tree = get_largest_tree(file);
         if (tree == NULL) {
-            printf("No Trees found inside %s.\n", filename);
+            std::cout << "No Trees found inside " << filename << std::endl;
             exit(-1);
         }
     } else {
         file.GetObject(treename, tree);
         if (tree == NULL) {
-            printf("Tree (%s) not found in file (%s).\n", treename, filename);
+            std::cout << "Tree (" << treename << ") not found in file (" << filename << ")." << std::endl;
             exit(-1);
         }
     }
@@ -355,7 +355,7 @@ void dump_file(const char *filename, const char *treename, const char *outdir) {
 }
 
 void usage(char * const *argv) {
-    printf("usage: %s [-h|--help] [-t treename] [file]...\n", basename(argv[0]));
+    std::cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [file]..." << std::endl;
     exit(-1);
 }
 
@@ -390,10 +390,10 @@ int main(int argc, char * const *argv) {
             if (long_options[option_index].flag != 0)
                 break;
             // Don't know when this code path is taken
-            printf("option %s", long_options[option_index].name);
+            std::cout << "option " << long_options[option_index].name;
             if (optarg)
-                printf(" with arg %s", optarg);
-            printf("\n");
+                std::cout << " with arg %s";
+            std::cout << std::endl;
             break;
 
         case 'h': usage(argv); break;
