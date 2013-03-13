@@ -137,7 +137,7 @@ void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     std::cout << "Dump vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
     auto * branch = leaf.GetBranch();
 
-    std::vector<std::vector<T> > * data = NULL;
+    std::vector<std::vector<T> > *data = NULL;
     tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
     int entries = tree->GetEntries();
     for (int i = 0; i < entries; i++) { 
@@ -169,7 +169,7 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     std::cout << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
     auto *branch = leaf.GetBranch();
 
-    std::vector<std::vector<std::vector<T> > > * data = NULL;
+    std::vector<std::vector<std::vector<T> > > *data = NULL;
     tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
     int entries = tree->GetEntries();
     for (int i = 0; i < entries; i++) { 
