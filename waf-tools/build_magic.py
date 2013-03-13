@@ -64,16 +64,8 @@ def get_deplibs(*args):
     libs = set(x for x in map(include_to_lib, includes) if not x is None)
     return libs
 
-def check_lib(conf, lib, mandatory=True):
-    # special casing for libraries
-    if lib == "root":
-        return conf.check_cfg(path="root-config", package="", uselib_store="root",
-                   args='--libs --cflags', mandatory=mandatory)
-    else:
-        return conf.check_cfg(package=lib, uselib_store=lib, args="--libs --cflags", mandatory=mandatory)
-
 @conf
-def magic(conf, name=None):
+def magic_project(conf, name=None):
     conf.load('compiler_c compiler_cxx')
     if name is None:
         name = dirname(conf.path.abspath())
@@ -94,41 +86,31 @@ def magic(conf, name=None):
     libs = get_deplibs(c,cpp,h,ph)
 
     base_libs = ext_libs.union(libs)
-    for lib in base_libs:
-        check_lib(conf, lib)
     conf.env.MAGIC_BASE_LIBS = base_libs
 
-    checked_libs = set(base_libs)
-    failed_libs = set()
     build_apps = {}
     build_tests = {}
     for app, fls in apps.iteritems():
-        deplibs = get_deplibs(*fls)
-        success = True
-        for dl in deplibs:
-            if dl in checked_libs:
-                continue
-            if dl in failed_libs or not check_lib(conf, dl, mandatory=False):
-                failed_libs.add(dl)
-                print "Cannot compile app '%s' since library '%s' is missing!" % (app, dl)
-                success = False
-        if success:
-            build_apps[app] = deplibs
-
+        build_apps[app] = get_deplibs(*fls)
     for app, fls in tests.iteritems():
-        deplibs = get_deplibs(*fls)
-        success = True
-        for dl in deplibs:
-            if dl in checked_libs:
-                continue
-            if dl in failed_libs or not check_lib(conf, dl, mandatory=False):
-                failed_libs.add(dl)
-                print "Cannot compile test '%s' since library '%s' is missing!" % (app, dl)
-                success = False
-        if success:
-            build_tests[app] = deplibs
+        build_tests[app] = get_deplibs(*fls)
     conf.env.MAGIC_APPS = build_apps
     conf.env.MAGIC_TESTS = build_tests
+    conf.env.HAVE_LIBRARY = {}
+
+@conf
+def magic_check_library(conf, package, mandatory=True, **kwargs):
+    # special casing for ROOT
+    if package == "root":
+        res = conf.check_cfg(path="root-config", package="", 
+            uselib_store=package, args='--libs --cflags', mandatory=mandatory,
+            **kwargs)
+    else:
+        res = conf.check_cfg(package=package, uselib_store=package, 
+            args="--libs --cflags", mandatory=mandatory,
+            **kwargs)
+    conf.env.HAVE_LIBRARY[package] = res
+    return res
 
 def build(bld):
     bld(features="cxx cxxshlib", 
