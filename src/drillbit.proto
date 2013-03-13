@@ -2,7 +2,8 @@
 message StripeInfo
 {
     required int32 stripe_version = 1;
-    optional string description = 2;
+    optional int32 field_type = 2;
+    optional string root_type = 3;
 }
 
 

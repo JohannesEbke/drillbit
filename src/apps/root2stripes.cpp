@@ -21,6 +21,8 @@
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/wire_format_lite.h>
 
+#include "drillbit.pb.h"
+
 using namespace std;
 
 using google::protobuf::io::FileOutputStream;
@@ -200,8 +202,12 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 
 template <typename T>
 void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
-    o2.WriteVarint32(level);
-    o2.WriteVarint32(get_field_type<T>());
+    StripeInfo info;
+    info.set_version(1);
+    info.set_field_type(get_field_type<T>());
+    info.set_root_type(leaf.GetTypeName());
+    o2.WriteVarint32(info.ByteSize());
+    info.SerializeToCodedStream(o2);
     switch (level) {
         case 0:
             dump_required_lvl0<T>(tree, leaf, o);
