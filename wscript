@@ -4,7 +4,7 @@ def options(opt):
     opt.load('compiler_c compiler_cxx python')
 
 def configure(conf):
-    conf.load("build_magic", tooldir="waf-tools")
+    conf.load("magic_project", tooldir="waf-tools")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LDFLAGS", ["-Wl,--as-needed"])
     conf.env.append_value("RPATH", [conf.env.LIBDIR])
@@ -13,5 +13,5 @@ def configure(conf):
     conf.magic_check_library("protobuf")
 
 def build(bld):
-    bld.load("build_magic", tooldir="waf-tools")
+    bld.load("magic_project", tooldir="waf-tools")
 
