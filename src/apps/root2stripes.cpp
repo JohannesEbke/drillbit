@@ -23,8 +23,6 @@
 
 #include "drillbit.pb.h"
 
-using namespace std;
-
 using google::protobuf::io::FileOutputStream;
 using google::protobuf::io::GzipOutputStream;
 using google::protobuf::io::CodedOutputStream;
