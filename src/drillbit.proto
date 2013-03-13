@@ -1,0 +1,8 @@
+
+message StripeInfo
+{
+    required int32 stripe_version = 1;
+    optional string description = 2;
+}
+
+

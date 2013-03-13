@@ -1,10 +1,10 @@
 from waflib.Configure import conf
 
 from os import listdir, system
-from os.path import dirname, isdir, join as pjoin
+from os.path import basename, isdir, join as pjoin
 
 ext_headers = ["h", "hpp"]
-ext_cpp = ["C", "cc", "cpp", "CPP", "c++", "cp", "cxx"]
+ext_cpp = ["C", "cc", "cpp", "CPP", "c++", "cp", "cxx", "proto"]
 ext_c = ["c"]
 
 headers = {
@@ -68,7 +68,8 @@ def get_deplibs(*args):
 def magic_project(conf, name=None):
     conf.load('compiler_c compiler_cxx')
     if name is None:
-        name = dirname(conf.path.abspath())
+        name = basename(conf.path.abspath())
+    print "MAGIC PROJECT ", name
     conf.env.MAGIC_PROJECT_NAME = name
     conf.env.MAGIC_SRC_PATH = s = "src"
     conf.env.MAGIC_APP_PATH = a = pjoin(s, "apps")
@@ -88,12 +89,15 @@ def magic_project(conf, name=None):
     base_libs = ext_libs.union(libs)
     conf.env.MAGIC_BASE_LIBS = base_libs
 
+    # add self-linking
+    conf.parse_flags("-l%s"%name, name, conf.env)
+
     build_apps = {}
     build_tests = {}
     for app, fls in apps.iteritems():
-        build_apps[app] = get_deplibs(*fls)
+        build_apps[app] = get_deplibs(*fls).union((name,))
     for app, fls in tests.iteritems():
-        build_tests[app] = get_deplibs(*fls)
+        build_tests[app] = get_deplibs(*fls).union((name,))
     conf.env.MAGIC_APPS = build_apps
     conf.env.MAGIC_TESTS = build_tests
     conf.env.HAVE_LIBRARY = {}
@@ -117,32 +121,32 @@ def build(bld):
         source=glob_for(bld, "src", ext_cpp),
         includes=bld.env.MAGIC_SRC_PATH,
         target=bld.env.MAGIC_PROJECT_NAME,
-        use=bld.env.MAGIC_BASE_LIBS)
+        use=sorted(bld.env.MAGIC_BASE_LIBS))
     
     for app, useset in bld.env.MAGIC_APPS.iteritems():
         base = pjoin("src", "apps", app)
-        use = list(bld.env.MAGIC_BASE_LIBS.union(useset))
+        use = sorted(bld.env.MAGIC_BASE_LIBS.union(useset))
         if isdir(base):
             source = glob_for(bld, base, ext_cpp)
         else:
             source = glob_single(bld, base, ext_cpp)
         if not source:
-            print "Application ", app, " has been removed since bldiguration."
+            print "Application ", app, " has been removed since configuration."
             continue
         bld(features="cxx cxxprogram", source=source, includes=["src/", base+"/"],
                 target=app, use=use)
 
     for app, use in bld.env.MAGIC_TESTS.iteritems():
         base = pjoin("src", "tests", app)
-        use = list(bld.env.MAGIC_BASE_LIBS.union(useset))
+        use = sorted(bld.env.MAGIC_BASE_LIBS.union(useset))
         if isdir(base):
             source = glob_for(bld, base, ext_cpp)
         else:
             source = glob_single(bld, base, ext_cpp)
         if not source:
-            print "Test ", app, " has been removed since bldiguration."
+            print "Test ", app, " has been removed since configuration."
             continue
-        bld(features="cxx cxxprogram testt", source=source, includes=["src/", base+"/"],
+        bld(features="cxx cxxprogram test", source=source, includes=["src/", base+"/"],
                 target=app, use=use)
     
     pubheaders = bld.path.ant_glob(pjoin("src", bld.env.MAGIC_PROJECT_NAME, "**.h"))
