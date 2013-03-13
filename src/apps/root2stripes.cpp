@@ -66,6 +66,8 @@ void write_out_type(CodedOutputStream &o, std::string v) {
 template<typename T> FieldDescriptor::Type get_field_type() {
     if (std::is_same<T, int16_t>::value) {
         return FieldDescriptor::TYPE_INT32;
+    } else if (std::is_same<T, Char_t>::value) {
+        return FieldDescriptor::TYPE_UINT32;
     } else if (std::is_same<T, uint16_t>::value) {
         return FieldDescriptor::TYPE_UINT32;
     } else if (std::is_same<T, int32_t>::value) {
@@ -277,6 +279,8 @@ void dump_tree(TTree * tree) {
                 dump_required<Float_t>(level, tree, *l, o, o2);
             } else if (tn == "Bool_t") {
                 dump_required<Bool_t>(level, tree, *l, o, o2);
+            } else if (tn == "Char_t") {
+                dump_required<Char_t>(level, tree, *l, o, o2);
             } else if (tn == "Double_t") {
                 dump_required<Double_t>(level, tree, *l, o, o2);
             } else if (tn == "Int_t") {
