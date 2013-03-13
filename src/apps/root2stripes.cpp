@@ -226,19 +226,19 @@ void dump_required(int level, TTree * tree, TLeaf& leaf, CodedOutputStream &o, C
 // 'vector<vector<double> >', 'vector<vector<float> >', 'vector<vector<int> >', 'vector<vector<string> >', 
 // 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
 
-void dump_tree(TTree * tree) {
+void dump_tree(TTree *tree, const char *outdir) {
     GzipOutputStream::Options options;
     options.compression_level = 1;
 
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf* l = (TLeaf*) tree->GetListOfLeaves()->At(li);
 
-        if (lstat("dit/", NULL) == -1) {
-            mkdir("dit/", 0777);
+        if (lstat(outdir, NULL) == -1) {
+            mkdir(outdir, 0777);
         }
 
         // Open data file
-        std::string fn = std::string("dit/") + l->GetName() + ".dit";
+        std::string fn = std::string(outdir) + "/" + l->GetName() + ".dit";
         auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd != -1);
         FileOutputStream fstream(fd);
@@ -324,7 +324,7 @@ TTree* get_largest_tree(TFile &file) {
     return largest_tree;
 }
 
-void dump_file(const char *filename, const char *treename) {
+void dump_file(const char *filename, const char *treename, const char *outdir) {
     TFile file(filename);
     TTree *tree = NULL;
     
@@ -343,7 +343,7 @@ void dump_file(const char *filename, const char *treename) {
             exit(-1);
         }
     }
-    dump_tree(tree);
+    dump_tree(tree, outdir);
 }
 
 void usage(char * const *argv) {
@@ -354,7 +354,8 @@ void usage(char * const *argv) {
 int main(int argc, char * const *argv) {
     int c = 0;
     
-    const char *treename = NULL;
+    const char *treename = NULL,
+               *outdir = "dit/";
     
     // Parse options
     while (true) {
@@ -362,12 +363,13 @@ int main(int argc, char * const *argv) {
             {"verbose",   no_argument,       &verbose, 1},
             {"help",      no_argument,       0, 'h'},
             {"tree",      required_argument, 0, 't'},
+            {"directory", required_argument, 0, 'D'},
             {0, 0, 0, 0}
         };
 
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "ht:", long_options, &option_index);
+        c = getopt_long(argc, argv, "ht:D:", long_options, &option_index);
 
         // End of options
         if (c == -1)
@@ -388,6 +390,7 @@ int main(int argc, char * const *argv) {
 
         case 'h': usage(argv); break;
         case 't': treename = optarg; break;
+        case 'D': outdir = optarg; break;
         
 
         default:
@@ -397,7 +400,7 @@ int main(int argc, char * const *argv) {
 
     if (optind < argc) {
         while (optind < argc)
-            dump_file(argv[optind++], treename);
+            dump_file(argv[optind++], treename, outdir);
     } else {
         usage(argv);
     }
