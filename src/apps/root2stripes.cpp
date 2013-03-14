@@ -320,11 +320,75 @@ void ensure_dictionaries(TTree *tree) {
     free(static_cast<void*>(orig_dir));
 }
 
-
-void dump_tree(TTree *tree, const char *outdir) {
+void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     GzipOutputStream::Options options;
     options.compression_level = 1;
+    
+    // Open data file
+    std::string fn = std::string(outdir) + "/" + leaf.GetName() + ".dit";
+    auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    assert(fd != -1);
+    FileOutputStream fstream(fd);
+    GzipOutputStream zstream(&fstream, options);
 
+
+    // Open meta file
+    std::string mfn = fn + "m";
+    auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    assert(mfd != -1);
+    FileOutputStream meta_fstream(mfd);
+    GzipOutputStream meta_zstream(&meta_fstream, options);
+    
+    { // Coded stream block 
+        CodedOutputStream o(&zstream);
+        CodedOutputStream o2(&meta_zstream);
+
+        // determine level and type name
+        int level = 0;
+        std::string tn = leaf.GetTypeName();
+        while (tn.substr(0,6) == "vector") {
+            level = level + 1;
+            tn = remove_vector(tn);
+        }
+
+        if (tn == "double") {
+            dump_required<double>(level, tree, leaf, o, o2);
+        } else if (tn == "float") {
+            dump_required<float>(level, tree, leaf, o, o2);
+        } else if (tn == "int") {
+            dump_required<int>(level, tree, leaf, o, o2);
+        } else if (tn == "short" || tn == "Short_t") {
+            dump_required<short>(level, tree, leaf, o, o2);
+        } else if (tn == "unsigned int") {
+            dump_required<unsigned int>(level, tree, leaf, o, o2);
+        } else if (tn == "unsigned short") {
+            dump_required<unsigned short>(level, tree, leaf, o, o2);
+        } else if (tn == "Float_t") {
+            dump_required<Float_t>(level, tree, leaf, o, o2);
+        } else if (tn == "Bool_t") {
+            dump_required<Bool_t>(level, tree, leaf, o, o2);
+        } else if (tn == "Char_t") {
+            dump_required<Char_t>(level, tree, leaf, o, o2);
+        } else if (tn == "Double_t") {
+            dump_required<Double_t>(level, tree, leaf, o, o2);
+        } else if (tn == "Int_t") {
+            dump_required<Int_t>(level, tree, leaf, o, o2);
+        } else if (tn == "UInt_t") {
+            dump_required<UInt_t>(level, tree, leaf, o, o2);
+        } else if (tn == "string") {
+            dump_required<std::string>(level, tree, leaf, o, o2);
+        } else {
+            std::cerr << "Unknown branch type: " << tn << std::endl;
+            assert(false);
+        }
+    }
+    meta_zstream.Close();
+    zstream.Close();
+    meta_fstream.Close();
+    fstream.Close();
+}
+
+void dump_tree(TTree *tree, const char *outdir) {
     if (lstat(outdir, NULL) == -1) {
         mkdir(outdir, 0777);
     }
@@ -332,69 +396,8 @@ void dump_tree(TTree *tree, const char *outdir) {
     ensure_dictionaries(tree);
         
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
-        TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
-        
-        // Open data file
-        std::string fn = std::string(outdir) + "/" + l->GetName() + ".dit";
-        auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-        assert(fd != -1);
-        FileOutputStream fstream(fd);
-        GzipOutputStream zstream(&fstream, options);
-
-
-        // Open meta file
-        std::string mfn = fn + "m";
-        auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-        assert(mfd != -1);
-        FileOutputStream meta_fstream(mfd);
-        GzipOutputStream meta_zstream(&meta_fstream, options);
-        { // Coded stream block 
-            CodedOutputStream o(&zstream);
-            CodedOutputStream o2(&meta_zstream);
-
-            // determine level and type name
-            int level = 0;
-            std::string tn = l->GetTypeName();
-            while (tn.substr(0,6) == "vector") {
-                level = level + 1;
-                tn = remove_vector(tn);
-            }
-
-            if (tn == "double") {
-                dump_required<double>(level, tree, *l, o, o2);
-            } else if (tn == "float") {
-                dump_required<float>(level, tree, *l, o, o2);
-            } else if (tn == "int") {
-                dump_required<int>(level, tree, *l, o, o2);
-            } else if (tn == "short" || tn == "Short_t") {
-                dump_required<short>(level, tree, *l, o, o2);
-            } else if (tn == "unsigned int") {
-                dump_required<unsigned int>(level, tree, *l, o, o2);
-            } else if (tn == "unsigned short") {
-                dump_required<unsigned short>(level, tree, *l, o, o2);
-            } else if (tn == "Float_t") {
-                dump_required<Float_t>(level, tree, *l, o, o2);
-            } else if (tn == "Bool_t") {
-                dump_required<Bool_t>(level, tree, *l, o, o2);
-            } else if (tn == "Char_t") {
-                dump_required<Char_t>(level, tree, *l, o, o2);
-            } else if (tn == "Double_t") {
-                dump_required<Double_t>(level, tree, *l, o, o2);
-            } else if (tn == "Int_t") {
-                dump_required<Int_t>(level, tree, *l, o, o2);
-            } else if (tn == "UInt_t") {
-                dump_required<UInt_t>(level, tree, *l, o, o2);
-            } else if (tn == "string") {
-                dump_required<std::string>(level, tree, *l, o, o2);
-            } else {
-                std::cerr << "Unknown branch type: " << tn << std::endl;
-                assert(false);
-            }
-        }
-        meta_zstream.Close();
-        zstream.Close();
-        meta_fstream.Close();
-        fstream.Close();
+        TLeaf &leaf = *dynamic_cast<TLeaf*>(tree->GetListOfLeaves()->At(li));
+        dump_leaf(outdir, leaf, tree);
     }
 }
 
