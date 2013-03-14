@@ -3,6 +3,8 @@
 #include <TChain.h>
 #include <TTree.h>
 #include <TLeaf.h>
+#include <TEmulatedCollectionProxy.h>
+#include <TInterpreter.h>
 
 #include <iostream>
 
@@ -10,6 +12,7 @@
 #include <sys/stat.h>
 
 #include <fcntl.h>
+#include <ftw.h>
 #include <libgen.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -90,29 +93,58 @@ template<typename T> FieldDescriptor::Type get_field_type() {
 }
 
 template <typename T>
-void dump_required_lvl0(TTree *tree, TLeaf &leaf, CodedOutputStream &o) {
+void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
     std::cout << "Dump " << leaf.GetName() << std::endl;
     auto *branch = leaf.GetBranch();
 
-    T data; 
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    T data;
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         write_out_type(o, data);
     }
 }
 
+
 template <typename T>
-void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+    const int DL = 1; // definition level multiplier
+    const int RL = 2; // repetition level multiplier
+    
+    auto *branch = leaf.GetBranch();
+
+    const auto length = leaf.GetLen();
+    std::cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << std::endl;
+    
+    T *data = new T[length];
+    
+    leaf.SetAddress(data);
+    
+    int entries = branch->GetEntries();
+    for (int i = 0; i < entries; i++) {
+        branch->GetEntry(i);
+        for (int j = 0; j < length; j++) {
+            int dl = 1;
+            int rl = (j > 0 ? 1 : 0);
+            write_out_32(o2, dl*DL + rl*RL);
+            write_out_type(o, data[j]);
+        }
+    }
+    
+    delete [] data;
+}
+
+template <typename T>
+void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     std::cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
     auto *branch = leaf.GetBranch();
 
     std::vector<T> *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -128,7 +160,7 @@ void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -136,8 +168,8 @@ void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     auto * branch = leaf.GetBranch();
 
     std::vector<std::vector<T> > *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -160,7 +192,7 @@ void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -168,8 +200,8 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     auto *branch = leaf.GetBranch();
 
     std::vector<std::vector<std::vector<T> > > *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -199,7 +231,7 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     StripeInfo info;
     info.set_stripe_version(1);
     info.set_level(level);
@@ -210,16 +242,20 @@ void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
     info.SerializeToCodedStream(&o2);
     switch (level) {
         case 0:
-            dump_required_lvl0<T>(tree, leaf, o);
+            if (leaf.GetLen() != 1) {
+                dump_required_lvl1_array<T>(leaf, o, o2);
+                break;
+            }
+            dump_required_lvl0<T>(leaf, o);
             break;
         case 1:
-            dump_required_lvl1<T>(tree, leaf, o, o2);
+            dump_required_lvl1<T>(leaf, o, o2);
             break;
         case 2:
-            dump_required_lvl2<T>(tree, leaf, o, o2);
+            dump_required_lvl2<T>(leaf, o, o2);
             break;
         case 3:
-            dump_required_lvl3<T>(tree, leaf, o, o2);
+            dump_required_lvl3<T>(leaf, o, o2);
             break;
         default:
             std::cerr << "The level is too damn high!" << std::endl;
@@ -232,78 +268,132 @@ void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
 // 'vector<vector<double> >', 'vector<vector<float> >', 'vector<vector<int> >', 'vector<vector<string> >', 
 // 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
 
-void dump_tree(TTree *tree, const char *outdir) {
+static char dictionary_tmpdir[] = "root2stripes-dicts-XXXXXX";
+
+int deletefile(const char *fpath, const struct stat *sb, int typeflag,
+               struct FTW *ftwbuf) {
+    switch (typeflag) {
+    case FTW_F:
+        unlink(fpath);
+        break;
+    case FTW_D:
+    case FTW_DP:
+        rmdir(fpath);
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
+
+void cleanup_root_dictionaries() {
+    std::cout << "Removing generated ROOT dictionaries" << std::endl;
+    nftw(dictionary_tmpdir, deletefile, 10, FTW_MOUNT | FTW_PHYS | FTW_DEPTH);
+}
+
+// Generate dictionaries required to read `tree`.
+void ensure_dictionaries(TTree *tree) {
+    char *orig_dir = get_current_dir_name();
+    
+    mkdtemp(dictionary_tmpdir);
+    chdir(dictionary_tmpdir);
+
+    atexit(cleanup_root_dictionaries);
+
+    for (int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
+        TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
+        
+        TClass* claim = TClass::GetClass(l->GetTypeName());
+        if (claim && claim->GetCollectionProxy() &&
+            dynamic_cast<TEmulatedCollectionProxy*>(claim->GetCollectionProxy())) {
+            // Only executed if the dictionary isn't currently present
+            std::cout << "Generating dictionary for " << l->GetTypeName() << std::endl;
+            gInterpreter->GenerateDictionary(l->GetTypeName());
+        }
+    }
+    
+    chdir(orig_dir);
+    free(static_cast<void*>(orig_dir));
+}
+
+void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     GzipOutputStream::Options options;
     options.compression_level = 1;
+    
+    // Open data file
+    std::string fn = std::string(outdir) + "/" + leaf.GetName() + ".dit";
+    auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    assert(fd != -1);
+    FileOutputStream fstream(fd);
+    GzipOutputStream zstream(&fstream, options);
 
+
+    // Open meta file
+    std::string mfn = fn + "m";
+    auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+    assert(mfd != -1);
+    FileOutputStream meta_fstream(mfd);
+    GzipOutputStream meta_zstream(&meta_fstream, options);
+    
+    { // Coded stream block 
+        CodedOutputStream o(&zstream);
+        CodedOutputStream o2(&meta_zstream);
+
+        // determine level and type name
+        int level = 0;
+        std::string tn = leaf.GetTypeName();
+        while (tn.substr(0,6) == "vector") {
+            level = level + 1;
+            tn = remove_vector(tn);
+        }
+
+        if (tn == "double") {
+            dump_required<double>(level, leaf, o, o2);
+        } else if (tn == "float") {
+            dump_required<float>(level, leaf, o, o2);
+        } else if (tn == "int") {
+            dump_required<int>(level, leaf, o, o2);
+        } else if (tn == "short" || tn == "Short_t") {
+            dump_required<short>(level, leaf, o, o2);
+        } else if (tn == "unsigned int") {
+            dump_required<unsigned int>(level, leaf, o, o2);
+        } else if (tn == "unsigned short") {
+            dump_required<unsigned short>(level, leaf, o, o2);
+        } else if (tn == "Float_t") {
+            dump_required<Float_t>(level, leaf, o, o2);
+        } else if (tn == "Bool_t") {
+            dump_required<Bool_t>(level, leaf, o, o2);
+        } else if (tn == "Char_t") {
+            dump_required<Char_t>(level, leaf, o, o2);
+        } else if (tn == "Double_t") {
+            dump_required<Double_t>(level, leaf, o, o2);
+        } else if (tn == "Int_t") {
+            dump_required<Int_t>(level, leaf, o, o2);
+        } else if (tn == "UInt_t") {
+            dump_required<UInt_t>(level, leaf, o, o2);
+        } else if (tn == "string") {
+            dump_required<std::string>(level, leaf, o, o2);
+        } else {
+            std::cerr << "Unknown branch type: " << tn << std::endl;
+            assert(false);
+        }
+    }
+    meta_zstream.Close();
+    zstream.Close();
+    meta_fstream.Close();
+    fstream.Close();
+}
+
+void dump_tree(TTree *tree, const char *outdir) {
+    if (lstat(outdir, NULL) == -1) {
+        mkdir(outdir, 0777);
+    }
+    
+    ensure_dictionaries(tree);
+        
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
-        TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
-
-        if (lstat(outdir, NULL) == -1) {
-            mkdir(outdir, 0777);
-        }
-
-        // Open data file
-        std::string fn = std::string(outdir) + "/" + l->GetName() + ".dit";
-        auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-        assert(fd != -1);
-        FileOutputStream fstream(fd);
-        GzipOutputStream zstream(&fstream, options);
-
-
-        // Open meta file
-        std::string mfn = fn + "m";
-        auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-        assert(mfd != -1);
-        FileOutputStream meta_fstream(mfd);
-        GzipOutputStream meta_zstream(&meta_fstream, options);
-        { // Coded stream block 
-            CodedOutputStream o(&zstream);
-            CodedOutputStream o2(&meta_zstream);
-
-            // determine level and type name
-            int level = 0;
-            std::string tn = l->GetTypeName();
-            while (tn.substr(0,6) == "vector") {
-                level = level + 1;
-                tn = remove_vector(tn);
-            }
-
-            if (tn == "double") {
-                dump_required<double>(level, tree, *l, o, o2);
-            } else if (tn == "float") {
-                dump_required<float>(level, tree, *l, o, o2);
-            } else if (tn == "int") {
-                dump_required<int>(level, tree, *l, o, o2);
-            } else if (tn == "short" || tn == "Short_t") {
-                dump_required<short>(level, tree, *l, o, o2);
-            } else if (tn == "unsigned int") {
-                dump_required<unsigned int>(level, tree, *l, o, o2);
-            } else if (tn == "unsigned short") {
-                dump_required<unsigned short>(level, tree, *l, o, o2);
-            } else if (tn == "Float_t") {
-                dump_required<Float_t>(level, tree, *l, o, o2);
-            } else if (tn == "Bool_t") {
-                dump_required<Bool_t>(level, tree, *l, o, o2);
-            } else if (tn == "Char_t") {
-                dump_required<Char_t>(level, tree, *l, o, o2);
-            } else if (tn == "Double_t") {
-                dump_required<Double_t>(level, tree, *l, o, o2);
-            } else if (tn == "Int_t") {
-                dump_required<Int_t>(level, tree, *l, o, o2);
-            } else if (tn == "UInt_t") {
-                dump_required<UInt_t>(level, tree, *l, o, o2);
-            } else if (tn == "string") {
-                dump_required<std::string>(level, tree, *l, o, o2);
-            } else {
-                std::cerr << "Unknown branch type: " << tn << std::endl;
-                assert(false);
-            }
-        }
-        meta_zstream.Close();
-        zstream.Close();
-        meta_fstream.Close();
-        fstream.Close();
+        TLeaf &leaf = *dynamic_cast<TLeaf*>(tree->GetListOfLeaves()->At(li));
+        dump_leaf(outdir, leaf, tree);
     }
 }
 
