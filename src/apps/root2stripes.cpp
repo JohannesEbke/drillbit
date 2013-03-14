@@ -106,6 +106,39 @@ void dump_required_lvl0(TTree *tree, TLeaf &leaf, CodedOutputStream &o) {
     }
 }
 
+
+template <typename T>
+void dump_required_lvl1_array(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+    const int DL = 1; // definition level multiplier
+    const int RL = 2; // repetition level multiplier
+    
+    auto *branch = leaf.GetBranch();
+
+    const auto length = leaf.GetLen();
+    std::cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << std::endl;
+    
+    T *data = new T[length];
+    
+    auto branch_status = tree->SetBranchAddress(leaf.GetBranch()->GetName(), data);
+    if (branch_status < 0) {
+        std::cerr << "Problem with SetBranchAddress: " << branch_status << std::endl;
+        abort();
+    }
+    
+    int entries = tree->GetEntries();
+    for (int i = 0; i < entries; i++) {
+        branch->GetEntry(i);
+        for (int j = 0; j < length; j++) {
+            int dl = 1;
+            int rl = (j > 0 ? 1 : 0);
+            write_out_32(o2, dl*DL + rl*RL);
+            write_out_type(o, data[j]);
+        }
+    }
+    
+    delete [] data;
+}
+
 template <typename T>
 void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
@@ -213,6 +246,10 @@ void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
     info.SerializeToCodedStream(&o2);
     switch (level) {
         case 0:
+            if (leaf.GetLen() != 1) {
+                dump_required_lvl1_array<T>(tree, leaf, o, o2);
+                break;
+            }
             dump_required_lvl0<T>(tree, leaf, o);
             break;
         case 1:
