@@ -93,13 +93,13 @@ template<typename T> FieldDescriptor::Type get_field_type() {
 }
 
 template <typename T>
-void dump_required_lvl0(TTree *tree, TLeaf &leaf, CodedOutputStream &o) {
+void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
     std::cout << "Dump " << leaf.GetName() << std::endl;
     auto *branch = leaf.GetBranch();
 
-    T data; 
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    T data;
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         write_out_type(o, data);
@@ -108,7 +108,7 @@ void dump_required_lvl0(TTree *tree, TLeaf &leaf, CodedOutputStream &o) {
 
 
 template <typename T>
-void dump_required_lvl1_array(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     
@@ -119,13 +119,9 @@ void dump_required_lvl1_array(TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
     
     T *data = new T[length];
     
-    auto branch_status = tree->SetBranchAddress(leaf.GetBranch()->GetName(), data);
-    if (branch_status < 0) {
-        std::cerr << "Problem with SetBranchAddress: " << branch_status << std::endl;
-        abort();
-    }
+    leaf.SetAddress(data);
     
-    int entries = tree->GetEntries();
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) {
         branch->GetEntry(i);
         for (int j = 0; j < length; j++) {
@@ -140,15 +136,15 @@ void dump_required_lvl1_array(TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
 }
 
 template <typename T>
-void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     std::cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
     auto *branch = leaf.GetBranch();
 
     std::vector<T> *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -164,7 +160,7 @@ void dump_required_lvl1(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -172,8 +168,8 @@ void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     auto * branch = leaf.GetBranch();
 
     std::vector<std::vector<T> > *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -196,7 +192,7 @@ void dump_required_lvl2(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -204,8 +200,8 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
     auto *branch = leaf.GetBranch();
 
     std::vector<std::vector<std::vector<T> > > *data = NULL;
-    tree->SetBranchAddress(leaf.GetBranch()->GetName(), &data);
-    int entries = tree->GetEntries();
+    leaf.SetAddress(&data);
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -235,7 +231,7 @@ void dump_required_lvl3(TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOut
 }
 
 template <typename T>
-void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     StripeInfo info;
     info.set_stripe_version(1);
     info.set_level(level);
@@ -247,19 +243,19 @@ void dump_required(int level, TTree *tree, TLeaf &leaf, CodedOutputStream &o, Co
     switch (level) {
         case 0:
             if (leaf.GetLen() != 1) {
-                dump_required_lvl1_array<T>(tree, leaf, o, o2);
+                dump_required_lvl1_array<T>(leaf, o, o2);
                 break;
             }
-            dump_required_lvl0<T>(tree, leaf, o);
+            dump_required_lvl0<T>(leaf, o);
             break;
         case 1:
-            dump_required_lvl1<T>(tree, leaf, o, o2);
+            dump_required_lvl1<T>(leaf, o, o2);
             break;
         case 2:
-            dump_required_lvl2<T>(tree, leaf, o, o2);
+            dump_required_lvl2<T>(leaf, o, o2);
             break;
         case 3:
-            dump_required_lvl3<T>(tree, leaf, o, o2);
+            dump_required_lvl3<T>(leaf, o, o2);
             break;
         default:
             std::cerr << "The level is too damn high!" << std::endl;
@@ -352,31 +348,31 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
         }
 
         if (tn == "double") {
-            dump_required<double>(level, tree, leaf, o, o2);
+            dump_required<double>(level, leaf, o, o2);
         } else if (tn == "float") {
-            dump_required<float>(level, tree, leaf, o, o2);
+            dump_required<float>(level, leaf, o, o2);
         } else if (tn == "int") {
-            dump_required<int>(level, tree, leaf, o, o2);
+            dump_required<int>(level, leaf, o, o2);
         } else if (tn == "short" || tn == "Short_t") {
-            dump_required<short>(level, tree, leaf, o, o2);
+            dump_required<short>(level, leaf, o, o2);
         } else if (tn == "unsigned int") {
-            dump_required<unsigned int>(level, tree, leaf, o, o2);
+            dump_required<unsigned int>(level, leaf, o, o2);
         } else if (tn == "unsigned short") {
-            dump_required<unsigned short>(level, tree, leaf, o, o2);
+            dump_required<unsigned short>(level, leaf, o, o2);
         } else if (tn == "Float_t") {
-            dump_required<Float_t>(level, tree, leaf, o, o2);
+            dump_required<Float_t>(level, leaf, o, o2);
         } else if (tn == "Bool_t") {
-            dump_required<Bool_t>(level, tree, leaf, o, o2);
+            dump_required<Bool_t>(level, leaf, o, o2);
         } else if (tn == "Char_t") {
-            dump_required<Char_t>(level, tree, leaf, o, o2);
+            dump_required<Char_t>(level, leaf, o, o2);
         } else if (tn == "Double_t") {
-            dump_required<Double_t>(level, tree, leaf, o, o2);
+            dump_required<Double_t>(level, leaf, o, o2);
         } else if (tn == "Int_t") {
-            dump_required<Int_t>(level, tree, leaf, o, o2);
+            dump_required<Int_t>(level, leaf, o, o2);
         } else if (tn == "UInt_t") {
-            dump_required<UInt_t>(level, tree, leaf, o, o2);
+            dump_required<UInt_t>(level, leaf, o, o2);
         } else if (tn == "string") {
-            dump_required<std::string>(level, tree, leaf, o, o2);
+            dump_required<std::string>(level, leaf, o, o2);
         } else {
             std::cerr << "Unknown branch type: " << tn << std::endl;
             assert(false);
