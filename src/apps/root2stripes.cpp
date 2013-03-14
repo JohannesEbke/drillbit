@@ -100,9 +100,11 @@ void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
     auto *branch = leaf.GetBranch();
 
     T data;
-    leaf.SetAddress(&data);
-    int entries = branch->GetEntries();
+    branch->SetAddress(&data);
+    
     FieldWriter<SpecifiedFieldType, T> writer(&o);
+    
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         writer.WriteOut(data);
@@ -120,8 +122,8 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
     std::cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << std::endl;
     
     T *data = new T[length];
+    branch->SetAddress(data); // Note: this should not be &data.
     
-    leaf.SetAddress(data);
     FieldWriter<SpecifiedFieldType, T> writer(&o);
     
     int entries = branch->GetEntries();
@@ -146,9 +148,11 @@ void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     auto *branch = leaf.GetBranch();
 
     std::vector<T> *data = NULL;
-    leaf.SetAddress(&data);
-    int entries = branch->GetEntries();
+    branch->SetAddress(&data);
+    
     FieldWriter<SpecifiedFieldType, T> writer(&o);
+    
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -172,9 +176,11 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     auto * branch = leaf.GetBranch();
 
     std::vector<std::vector<T> > *data = NULL;
-    leaf.SetAddress(&data);
-    int entries = branch->GetEntries();
+    branch->SetAddress(&data);
+    
     FieldWriter<SpecifiedFieldType, T> writer(&o);
+    
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
@@ -207,8 +213,10 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
 
     std::vector<std::vector<std::vector<T> > > *data = NULL;
     leaf.SetAddress(&data);
-    int entries = branch->GetEntries();
+    
     FieldWriter<SpecifiedFieldType, T> writer(&o);
+    
+    int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
