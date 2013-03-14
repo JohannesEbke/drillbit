@@ -164,77 +164,140 @@ class StripeReader {
         // now _buffer is allocated and zeroed!
     }
 
-    bool next() {
-        int level = info.level();
-        if (level == 0) {
-            //std::cerr << "Level 0" << std::endl;
-            switch (_wiretype) {
-                case WireFormatLite::WIRETYPE_VARINT:
-                    if (_buffersize == 4) {
-                        if(!_data->ReadVarint32((uint32_t*)_buffer)) return false;
-                    } else if (_buffersize == 8) {
-                        if (!_data->ReadVarint64((uint64_t*)_buffer)) return false;
-                    } else assert(false);
-                    break;
-                case WireFormatLite::WIRETYPE_FIXED64:
-                    if (!_data->ReadLittleEndian64((uint64_t*)_buffer)) return false;
-                    break;
-                case WireFormatLite::WIRETYPE_FIXED32:
-                    if (!_data->ReadLittleEndian32((uint32_t*)_buffer)) return false;
-                    break;
-                case WireFormatLite::WIRETYPE_LENGTH_DELIMITED:
-                    //assert(in->ReadVarint32(&v32));
-                    //assert(in->ReadString(&s, v32));
-                    //cs = s.c_str();
-                    //branch->SetAddress(reinterpret_cast<void*>(const_cast<char*>(cs))); //Urk
-                    //branch->Fill();
-                    //sum += v32;
-                    //break;
-                default:
-                //case WIRETYPE_LENGTH_DELIMITED:
-                //case WIRETYPE_START_GROUP:
-                //case WIRETYPE_END_GROUP:
-                    std::cout << "UNKNOWN WIRE TYPE " << _wiretype << std::endl;
-                    assert(false);
-            }
-        } else if (level > 0) {
-            return true;
-            //std::cout << "Field "<< dit_files[i] << std::endl;
-            bool first = true;
-            while (true) {
-                uint32_t dl_rl = _last_tag; // look at the last read tag
-                uint32_t RL_M = level == 1 ? 2 : 4;
-                uint32_t rl = dl_rl / RL_M;
-                uint32_t dl = dl_rl % RL_M;
-                //std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
-                //std::cerr << "DLRL " << dl_rl << std::endl;
-                if (dl_rl == 0) {
-                    if (first) {
-                        //std::cout << i << ":" << "NULL" << std::endl;
-                        if (!_meta->ReadVarint32(&_last_tag)) return false; // look at the next tag
-                        break; // no fields in this event
-                    } else {
-                        break; // no fields in this event
-                    }
-                } else if (rl == 0) {
-                    if (first) {
-                        if (dl == level) {
-                            //deal_with_data(i, cd[i], wiretype);
-                        }
-                        if (!_meta->ReadVarint32(&_last_tag)) return false; // look at the next tag
-                    } else {
-                        // more than one field read, but this one belongs to the next event
-                        // - leave tag in place
-                        break;
-                    }
+    bool decode_32(uint32_t *buf) {
+        union {uint32_t i; float f;};
+        //std::cerr << "Level 0" << std::endl;
+        if(_wiretype == WireFormatLite::WIRETYPE_VARINT and _buffersize == 4) {
+            if(!_data->ReadVarint32(buf)) return false;
+        } else if (_wiretype == WireFormatLite::WIRETYPE_FIXED32) {
+            if (!_data->ReadLittleEndian32(buf)) return false;
+        } else {
+            std::cout << "UNEXPECTED WIRE TYPE " << _wiretype << std::endl;
+            assert(false);
+        }
+        if (info.field_type() == WireFormatLite::TYPE_FLOAT) {
+            f = WireFormatLite::DecodeFloat(*buf);
+            *buf = i;
+        }
+        return true;
+    }
+    
+    bool decode_64(uint64_t *buf) {
+        union {uint64_t i; float f;};
+        //std::cerr << "Level 0" << std::endl;
+        if(_wiretype == WireFormatLite::WIRETYPE_VARINT and _buffersize == 8) {
+            if(!_data->ReadVarint64(buf)) return false;
+        } else if (_wiretype == WireFormatLite::WIRETYPE_FIXED64) {
+            if (!_data->ReadLittleEndian64(buf)) return false;
+        } else {
+            std::cout << "UNEXPECTED WIRE TYPE " << _wiretype << std::endl;
+            assert(false);
+        }
+        if (info.field_type() == WireFormatLite::TYPE_DOUBLE) {
+            f = WireFormatLite::DecodeDouble(*buf);
+            *buf = i;
+        }
+        return true;
+    }
+
+    bool decode_string(std::string &s) {
+        //std::cerr << "Level 0" << std::endl;
+        if (_wiretype == WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
+            uint32_t size;
+            if (!_data->ReadVarint32(&size)) return false;
+            assert(_data->ReadString(&s, size));
+        } else {
+            std::cout << "UNEXPECTED WIRE TYPE " << _wiretype << std::endl;
+            assert(false);
+        }
+        return true;
+    }
+
+    template<typename T> 
+    uint32_t vector_filler() {
+        //std::cout << "Field "<< dit_files[i] << std::endl;
+        T & v = *((T*)_buffer);
+        uint32_t level = info.level();
+        bool first = true;
+        while (true) {
+            uint32_t dl_rl = _last_tag; // look at the last read tag
+            uint32_t RL_M = level == 1 ? 2 : 4;
+            uint32_t rl = dl_rl / RL_M;
+            uint32_t dl = dl_rl % RL_M;
+            //std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
+            //std::cerr << "DLRL " << dl_rl << std::endl;
+            if (dl_rl == 0) {
+                if (first) {
+                    //std::cout << i << ":" << "NULL" << std::endl;
+                    if (!_meta->ReadVarint32(&_last_tag)) return false; // look at the next tag
+                    break; // no fields in this event
                 } else {
+                    break; // no fields in this event
+                }
+            } else if (rl == 0) {
+                if (first) {
                     if (dl == level) {
                         //deal_with_data(i, cd[i], wiretype);
                     }
                     if (!_meta->ReadVarint32(&_last_tag)) return false; // look at the next tag
+                } else {
+                    // more than one field read, but this one belongs to the next event
+                    // - leave tag in place
+                    break;
                 }
-                first = false;
+            } else {
+                if (dl == level) {
+                    //deal_with_data(i, cd[i], wiretype);
+                }
+                if (!_meta->ReadVarint32(&_last_tag)) return false; // look at the next tag
             }
+            first = false;
+        }
+    }
+
+    bool next() {
+        int level = info.level();
+        if (level == 0) {
+            //std::cerr << "Level 0" << std::endl;
+            if (_buffersize == 4) {
+                if(!decode_32((uint32_t*)_buffer)) return false;
+            } else if (_buffersize == 8) {
+                if(!decode_64((uint64_t*)_buffer)) return false;
+            } else {
+                std::cout << "Unexpected buffersize: " << _buffersize << std::endl;
+                assert(false);
+            }
+        } else if (level == 1) {
+            switch(info.field_type()) {
+                case WireFormatLite::TYPE_DOUBLE:
+                    vector_filler<std::vector<double>>(); break;
+                case WireFormatLite::TYPE_INT64:
+                case WireFormatLite::TYPE_SFIXED64:
+                case WireFormatLite::TYPE_SINT64:
+                    vector_filler<std::vector<int64_t>>(); break;
+                case WireFormatLite::TYPE_UINT64:
+                case WireFormatLite::TYPE_FIXED64:
+                    vector_filler<std::vector<uint64_t>>(); break;
+                case WireFormatLite::TYPE_FLOAT:
+                    vector_filler<std::vector<float>>(); break;
+                case WireFormatLite::TYPE_INT32:
+                case WireFormatLite::TYPE_SINT32:
+                case WireFormatLite::TYPE_SFIXED32:
+                    vector_filler<std::vector<int32_t>>(); break;
+                case WireFormatLite::TYPE_FIXED32:
+                case WireFormatLite::TYPE_UINT32:
+                case WireFormatLite::TYPE_ENUM:
+                    vector_filler<std::vector<uint32_t>>(); break;
+                case WireFormatLite::TYPE_BOOL:
+                    vector_filler<std::vector<bool>>(); break;
+                case WireFormatLite::TYPE_STRING:
+                case WireFormatLite::TYPE_BYTES:
+                    vector_filler<std::vector<std::string>>(); break;
+                default:
+                    std::cerr << "Unknown field type " << info.field_type() << std::endl;
+                    assert(false);
+            }
+            return true;
         }
         return true;
     }
@@ -248,6 +311,7 @@ class StripeReader {
     WireFormatLite::WireType _wiretype;
     void* _buffer;
     uint32_t _buffersize;
+    std::string _stringbuffer;
 };
 
 uint64_t sum;
@@ -290,40 +354,6 @@ std::pair<void*, size_t> copy_file_decomp(std::string fn) {
     target = realloc(target, bytes_read);
     return make_pair(target, bytes_read);
 };
-
-void deal_with_data(int i, CodedInputStream * in, WireFormatLite::WireType wiretype) {
-    uint32_t v32;
-    uint64_t v64;
-    std::string s;
-    switch (wiretype) {
-        case WireFormatLite::WIRETYPE_VARINT:
-            assert(in->ReadVarint32(&v32));
-            //std::cout << i << ":" << v << std::endl;
-            //write(1, &i, sizeof(int));
-            //write(1, &v, sizeof(v));
-            sum += v32;
-            break;
-        case WireFormatLite::WIRETYPE_FIXED64:
-            assert(in->ReadLittleEndian64(&v64));
-            sum += WireFormatLite::DecodeDouble(v64);
-            break;
-        case WireFormatLite::WIRETYPE_FIXED32:
-            assert(in->ReadLittleEndian32(&v32));
-            sum += WireFormatLite::DecodeFloat(v32);
-            break;
-        case WireFormatLite::WIRETYPE_LENGTH_DELIMITED:
-            assert(in->ReadVarint32(&v32));
-            assert(in->ReadString(&s, v32));
-            sum += v32;
-            break;
-        default:
-        //case WIRETYPE_LENGTH_DELIMITED:
-        //case WIRETYPE_START_GROUP:
-        //case WIRETYPE_END_GROUP:
-            std::cout << "UNKNOWN WIRE TYPE " << wiretype << std::endl;
-            assert(false);
-    }
-}
 
 void compose_root_file(std::string name, const std::vector<std::string>& dit_files, const std::vector<std::string>& ditm_files) {
     std::vector<std::pair<void*,size_t> > dit, ditm;

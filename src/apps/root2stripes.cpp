@@ -35,60 +35,59 @@ using google::protobuf::internal::WireFormatLite;
 // Set by getopt
 static int verbose;
 
+// Remove one vector<...> from a ROOT type definition
 std::string remove_vector(std::string type) {
     std::string res = type.substr(7, type.size()-8); // 7 = len("vector<"), 8 is that - ">"
     while (res[res.size()-1] == ' ') res = res.substr(0, res.size()-1); // rstrip
     return res;
 }
 
-void write_out_32(CodedOutputStream &o, uint32_t v) {
-    o.WriteVarint32(v);
-}
-void write_out_64(CodedOutputStream &o, uint64_t v) {
-    o.WriteVarint64(v);
-}
-void write_out_f32(CodedOutputStream &o, float v) {
-    o.WriteLittleEndian32(WireFormatLite::EncodeFloat(v));
-}
-void write_out_f64(CodedOutputStream &o, double v) {
-    o.WriteLittleEndian64(WireFormatLite::EncodeDouble(v));
+#define MAP(X, Y) \
+    template <enum WireFormatLite::FieldType DeclaredType, typename CType>\
+    typename std::enable_if<DeclaredType == WireFormatLite::TYPE_ ## X>::type \
+    WriteOut(CType v, CodedOutputStream *o) { WireFormatLite::Write ## Y ## NoTag   (v, o); };
+
+MAP(INT32, Int32);
+MAP(INT64, Int64);
+MAP(UINT32, UInt32);
+MAP(UINT64, UInt64);
+MAP(SINT32, SInt32);
+MAP(SINT64, SInt64);
+MAP(FIXED32, Fixed32);
+MAP(FIXED64, Fixed64);
+MAP(SFIXED32, SFixed32);
+MAP(SFIXED64, SFixed64);
+MAP(FLOAT, Float);
+MAP(DOUBLE, Double);
+MAP(BOOL, Bool);
+MAP(ENUM, Enum);
+
+#undef MAP
+
+template <enum WireFormatLite::FieldType DeclaredType, typename CType>
+typename std::enable_if<DeclaredType == WireFormatLite::TYPE_STRING>::type 
+WriteOut(CType v, CodedOutputStream *o) {
+    o->WriteVarint32(v.size());
+    o->WriteString(v);
 }
 
-void write_out_type(CodedOutputStream &o, Bool_t v) {write_out_32(o, v);}
-void write_out_type(CodedOutputStream &o, int v) {write_out_32(o, v);}
-void write_out_type(CodedOutputStream &o, short v) {write_out_32(o, v);}
-void write_out_type(CodedOutputStream &o, unsigned int v) {write_out_32(o, v);}
-void write_out_type(CodedOutputStream &o, unsigned short v) {write_out_32(o, v);}
-void write_out_type(CodedOutputStream &o, float v) { write_out_f32(o, v); }
-void write_out_type(CodedOutputStream &o, double v) { write_out_f64(o, v); }
-void write_out_type(CodedOutputStream &o, std::string v) { 
-    o.WriteVarint32(v.size());
-    o.WriteString(v);
-}
+/*template <enum WireFormatLite::FieldType DeclaredType, typename CType>
+void WriteOut(CType v, CodedOutputStream *o) {
+    assert(false);
+}*/
 
-template<typename T> FieldDescriptor::Type get_field_type() {
-    if (std::is_same<T, int16_t>::value) {
-        return FieldDescriptor::TYPE_INT32;
-    } else if (std::is_same<T, Char_t>::value) {
-        return FieldDescriptor::TYPE_UINT32;
-    } else if (std::is_same<T, uint16_t>::value) {
-        return FieldDescriptor::TYPE_UINT32;
-    } else if (std::is_same<T, int32_t>::value) {
-        return FieldDescriptor::TYPE_INT32;
-    } else if (std::is_same<T, uint32_t>::value) {
-        return FieldDescriptor::TYPE_UINT32; 
-    } else if (std::is_same<T, int64_t>::value) {
-        return FieldDescriptor::TYPE_INT64;
-    } else if (std::is_same<T, uint64_t>::value) {
-        return FieldDescriptor::TYPE_UINT64;
-    } else if (std::is_same<T, float>::value) {
-        return FieldDescriptor::TYPE_FLOAT;
-    } else if (std::is_same<T, double>::value) {
-        return FieldDescriptor::TYPE_DOUBLE;
-    } else if (std::is_same<T, bool>::value) {
-        return FieldDescriptor::TYPE_BOOL;
-    } else if (std::is_same<T, std::string>::value) {
-        return FieldDescriptor::TYPE_STRING;
+template <enum WireFormatLite::FieldType DeclaredType, int maxlevel, int level, typename T>
+void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutputStream *o2) {
+    const int DL = 1; // definition level multiplier
+    const int RL = (maxlevel == 1) ? 2 : 4; // repetition level multiplier
+    for (int l = 0; l < data.size(); l++) {
+        int rl = (l > 0 ? level : repetition_level);
+        o2->WriteVarint32(level*DL + rl*RL);
+        if (level == maxlevel) {
+            WriteOut<DeclaredType>(data.at(l), o);
+        } else {
+            RecursiveDump<DeclaredType, maxlevel, level+1>(data.at(l), rl, o, o2);
+        }
     }
 }
 
