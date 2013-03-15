@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 
 #include <fcntl.h>
-#include <ftw.h>
+
 #include <libgen.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -26,6 +26,7 @@
 #include <google/protobuf/wire_format_lite_inl.h>
 
 #include "drillbit.pb.h"
+#include "root_dictionaries.h"
 
 using google::protobuf::io::FileOutputStream;
 using google::protobuf::io::GzipOutputStream;
@@ -275,57 +276,6 @@ void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
     }
 }
 
-//'vector<double>', 'vector<float>', 'vector<int>', 'vector<short>', 'vector<unsigned int>', 'vector<unsigned short>',
-// 'vector<vector<double> >', 'vector<vector<float> >', 'vector<vector<int> >', 'vector<vector<string> >', 
-// 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
-
-static char dictionary_tmpdir[] = "root2stripes-dicts-XXXXXX";
-
-int deletefile(const char *fpath, const struct stat *sb, int typeflag,
-               struct FTW *ftwbuf) {
-    switch (typeflag) {
-    case FTW_F:
-        unlink(fpath);
-        break;
-    case FTW_D:
-    case FTW_DP:
-        rmdir(fpath);
-        break;
-    default:
-        break;
-    }
-    return 0;
-}
-
-void cleanup_root_dictionaries() {
-    std::cout << "Removing generated ROOT dictionaries" << std::endl;
-    nftw(dictionary_tmpdir, deletefile, 10, FTW_MOUNT | FTW_PHYS | FTW_DEPTH);
-}
-
-// Generate dictionaries required to read `tree`.
-void ensure_dictionaries(TTree *tree) {
-    char *orig_dir = get_current_dir_name();
-    
-    mkdtemp(dictionary_tmpdir);
-    chdir(dictionary_tmpdir);
-
-    atexit(cleanup_root_dictionaries);
-
-    for (int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
-        TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
-        
-        TClass* claim = TClass::GetClass(l->GetTypeName());
-        if (claim && claim->GetCollectionProxy() &&
-            dynamic_cast<TEmulatedCollectionProxy*>(claim->GetCollectionProxy())) {
-            // Only executed if the dictionary isn't currently present
-            std::cout << "Generating dictionary for " << l->GetTypeName() << std::endl;
-            gInterpreter->GenerateDictionary(l->GetTypeName());
-        }
-    }
-    
-    chdir(orig_dir);
-    free(static_cast<void*>(orig_dir));
-}
 
 void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     GzipOutputStream::Options options;

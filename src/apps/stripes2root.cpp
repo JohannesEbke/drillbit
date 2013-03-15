@@ -20,6 +20,7 @@
 #include <TFile.h>
 
 #include "drillbit.pb.h"
+#include "root_dictionaries.h"
 
 using namespace std;
 
@@ -56,7 +57,8 @@ class StripeReader {
     }
 
     // Create a branch of this type in the given ROOT Tree and hold on to it
-    void create_branch(TTree* tree, TFile* f) {
+    void create_branch(TTree* tree) {
+        ensure_dictionary(info.root_type().c_str());
         // Create Branch
         if (info.level() == 0) {
             // can be Int_t, UInt_t, Double_t, Float_t, Bool_t
@@ -74,7 +76,7 @@ class StripeReader {
                 std::cerr << "Unknown root_type: " << info.root_type() << std::endl;
             }
         } else {
-            _branch = tree->Branch(info.root_name().c_str(), info.root_type().c_str(), _buffer);
+            _branch = tree->Branch(info.root_name().c_str(), info.root_type().c_str(), &_buffer);
         }
         //_branch->SetFile(f);
     }
@@ -212,10 +214,9 @@ class StripeReader {
     }
 
     template<typename T>
-    void decode_into(std::vector<T> v) {
+    void decode_into(std::vector<T> &v) {
         if (_buffersize == 4) {
             uint32_t b;
-            std::cout << "DCI " << b << std::endl;
             assert(decode_32(&b));
             v.push_back(*reinterpret_cast<T*>(&b));
         } else if (_buffersize == 8) {
@@ -227,7 +228,7 @@ class StripeReader {
         }
     }
 
-    void decode_into(std::vector<std::string> v) {
+    void decode_into(std::vector<std::string> &v) {
         std::string b;
         assert(decode_string(b));
         v.push_back(b);
@@ -235,7 +236,7 @@ class StripeReader {
     
     template<typename T> 
     bool vector_filler() {
-        T & v = *((T*)_buffer);
+        T & v = *((T*) _buffer);
         v.clear();
         uint32_t level = info.level();
         bool first = true;
@@ -245,7 +246,7 @@ class StripeReader {
             uint32_t RL_M = level == 1 ? 2 : 4;
             uint32_t rl = dl_rl / RL_M;
             uint32_t dl = dl_rl % RL_M;
-            std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
+            //std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
             //std::cerr << "DLRL " << dl_rl << std::endl;
             if (dl_rl == 0) {
                 if (first) {
@@ -280,11 +281,11 @@ class StripeReader {
             }
             first = false;
         }
-        std::cout << "Have vector of size " << v.size() << std::endl;
-        for (int i = 0; i < v.size(); i++) {
-            std::cout << v[i] << " ";
-        }
-        std::cout << std::endl;
+        //std::cout << "Have vector of size " << v.size() << std::endl;
+        //for (int i = 0; i < v.size(); i++) {
+        //    std::cout << v[i] << " ";
+        //}
+        //std::cout << std::endl;
         return true;
     }
 
@@ -415,12 +416,13 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     std::cerr << "Looking up column metadata and creating root tree..." << std::endl;
 
     TFile f(name.c_str(), "RECREATE");
-    TTree * tree = new TTree();
+    f.cd();
+    TTree * tree = new TTree("composed", "Composed Tree");
 
     std::vector<StripeReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {
         auto * reader = StripeReader::Make(cm[i], cd[i]);
-        reader->create_branch(tree, &f);
+        reader->create_branch(tree);
         readers.push_back(reader);
     }
 
@@ -430,7 +432,7 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     while(running) {
         //std::cerr << "Event start..." << std::endl;
         //std::cout << event_number << std::endl;
-        std::cerr << event_number << std::endl;
+        if (event_number % 1000 == 0) std::cerr << event_number << std::endl;
         for (int i = 0; i < dit_files.size(); i++) {
             if (not readers[i]->next()) {
                 running = false;
@@ -441,7 +443,8 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
         event_number++;
         //if (event_number == 1000) break;
     }
-    tree->Write("composed");
+    f.Write();
+    f.Close();
 }
 
 
