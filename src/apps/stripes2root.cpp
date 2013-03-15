@@ -112,6 +112,8 @@ class StripeReader {
                 _buffersize = 8;
                 break;
             case WireFormatLite::CPPTYPE_STRING:
+                _buffersize = 0;
+                break;
             case WireFormatLite::CPPTYPE_MESSAGE:
             default:
                 std::cerr << "Unknown/Unsupported field type " << info.field_type() << std::endl;
