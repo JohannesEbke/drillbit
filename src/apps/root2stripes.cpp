@@ -213,7 +213,7 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     auto *branch = leaf.GetBranch();
 
     std::vector<std::vector<std::vector<T> > > *data = NULL;
-    leaf.SetAddress(&data);
+    branch->SetAddress(&data);
     
     FieldWriter<SpecifiedFieldType, T> writer(&o);
     
