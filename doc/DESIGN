@@ -1,0 +1,50 @@
+Core Problems
+-------------
+* Synchronization of events across columns ("Friend Tree Problem")
+* Grid data storage and discovery
+* Allow whole event read
+
+Blocks
+------
+Definition: A "Block" is a set of events (let's say ~10k-100k). Think of it as
+a typical amount of events stored in a file.
+
+A block has a fingerprint so that variables belonging to the same block can
+be identified. The fingerprint ensures that the _original_ data this event was
+generated from is identical (AMI tags therefore also change the fingerprint for
+data derived from D3PDs and also for MC).
+
+Estimate of the number of blocks:
+simulation / data -> tag -> run [-> lb]
+->10(years) * 10(tags) * 200(runs) * 100 (files?) => 2M blocks - too many!?
+Blocking per run would yield ~20k data + 70k MC "runs"
+=> block namespacing by mc/data, mc tag, data period(?)
+
+Columns
+-------
+3200 variables in current Photon D3PD
++ 3000(?) in other D3PDs
++ 4000(?) for AOD stuff?
+=> ~10k columns (*) versions
+Namespaced columns by user.
+
+Files
+-----
+Drillbit files are plain zip files without compression. In them, column files
+(.column) and columninfo (.columninfo) files are stored
+
+A drillbit file contains a metadata/blocks file which contains a list of
+blocks that this file contains. It also may contain a metadata/skim/ directory
+with files in it that describe skims or thins that have been performed on the
+data in this file.
+
+Workflows
+---------
+Drillbit plans to support the following workflows:
+* Convert a ROOT file into a Drillbit file
+* Convert Drillbit file(s) into a ROOT file
+* Use drillbit to convert a ROOT file into a different ROOT file (testing)
+* Perform a skim/slim/thin/repack on drillbit file(s)
+* Run a ROOT-based script with TTree adapter on a drillbit file, ROOT output
+* Run an A4 analysis on a drillbit file, A4 output
+* Run a native drillbit analysis, drillbit file output
