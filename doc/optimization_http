@@ -1,0 +1,45 @@
+
+A set of benchmarks run on the LRZ dcache http door and a 273MB test zip file.
+
+"all" means: All columns read, "one" is one column read.
+These values are not influenced by the varied settings, just by the natural variation.
+
+"half" reads half the columns.
+
+First number is the mean, second the standard deviation (N=10)
+MinHoleSize is the amount of unused data that is accepted between columns, RPR is the 
+Ranges per Request - limited by a server refusal at ~300.
+
+
+MinHoleSize 0 / RPR 200
+all 3.95319213867 0.320321316932
+half 3.97858798504 1.58447401034
+one 0.339269757271 0.0764724409301
+
+MinHoleSize 1024 / RPR 200
+all 3.97753813267 0.341127470241
+half 3.13523523808 0.93353597393
+one 0.32115790844 0.0434756852313
+
+MinHoleSize 8*1024 / RPR 200
+all 4.23259820938 0.770435307686
+half 2.78841030598 0.632144217848
+one 0.327394890785 0.0505822815437
+
+MinHoleSize 64*1024 / RPR 200
+all 4.59928569794 0.608693271729
+half 2.48093380928 0.748003934727
+one 0.301613020897 0.0249483233837
+
+MinHoleSize 64*1024 / RPR 250
+all 3.8758289814 0.50620290328
+half 1.7216711998 0.172958449526
+one 0.308363866806 0.0478453566407
+
+MinHoleSize 512*1024 / RPR 200
+all 4.66114945412 1.52822157334
+half 2.83551669121 0.8361467518
+one 0.293758630753 0.0171027450641
+
+
+
