@@ -46,5 +46,6 @@ Drillbit plans to support the following workflows:
 * Use drillbit to convert a ROOT file into a different ROOT file (testing)
 * Perform a skim/slim/thin/repack on drillbit file(s)
 * Run a ROOT-based script with TTree adapter on a drillbit file, ROOT output
+* Run a given C++ tool with drillbit input and output
 * Run an A4 analysis on a drillbit file, A4 output
 * Run a native drillbit analysis, drillbit file output
