@@ -17,6 +17,8 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pcre.h>
+#include <fnmatch.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/gzip_stream.h>
@@ -34,12 +36,18 @@ using google::protobuf::io::CodedOutputStream;
 using google::protobuf::FieldDescriptor;
 using google::protobuf::internal::WireFormatLite;
 
+using std::vector;
+using std::string;
+using std::cout;
+using std::cerr;
+using std::endl;
+
 // Set by getopt
 static int verbose;
 
 // Remove one vector<...> from a ROOT type definition
-std::string remove_vector(std::string type) {
-    std::string res = type.substr(7, type.size()-8); // 7 = len("vector<"), 8 is that - ">"
+string remove_vector(string type) {
+    string res = type.substr(7, type.size()-8); // 7 = len("vector<"), 8 is that - ">"
     while (res[res.size()-1] == ' ') res = res.substr(0, res.size()-1); // rstrip
     return res;
 }
@@ -66,7 +74,7 @@ namespace internal {
 #undef MAP
     template <enum WireFormatLite::FieldType SpecifiedFieldType, typename CType>
     typename std::enable_if<SpecifiedFieldType == WireFormatLite::TYPE_STRING>::type 
-    WriteOut(std::string v, CodedOutputStream *o) {
+    WriteOut(string v, CodedOutputStream *o) {
         o->WriteVarint32(v.size());
         o->WriteString(v);
     };
@@ -97,7 +105,7 @@ void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutp
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
 void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
-    std::cout << "Dump " << leaf.GetName() << std::endl;
+    cout << "Dump " << leaf.GetName() << endl;
     auto *branch = leaf.GetBranch();
 
     T data;
@@ -120,7 +128,7 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
     auto *branch = leaf.GetBranch();
 
     const auto length = leaf.GetLen();
-    std::cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << std::endl;
+    cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << endl;
     
     T *data = new T[length];
     branch->SetAddress(data); // Note: this should not be &data.
@@ -145,10 +153,10 @@ template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
 void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
-    std::cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
+    cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto *branch = leaf.GetBranch();
 
-    std::vector<T> *data = NULL;
+    vector<T> *data = NULL;
     branch->SetAddress(&data);
     
     FieldWriter<SpecifiedFieldType, T> writer(&o);
@@ -173,10 +181,10 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
-    std::cout << "Dump vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
+    cout << "Dump vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto * branch = leaf.GetBranch();
 
-    std::vector<std::vector<T> > *data = NULL;
+    vector<vector<T> > *data = NULL;
     branch->SetAddress(&data);
     
     FieldWriter<SpecifiedFieldType, T> writer(&o);
@@ -209,10 +217,10 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
-    std::cout << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << std::endl;
+    cout << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto *branch = leaf.GetBranch();
 
-    std::vector<std::vector<std::vector<T> > > *data = NULL;
+    vector<vector<vector<T> > > *data = NULL;
     branch->SetAddress(&data);
     
     FieldWriter<SpecifiedFieldType, T> writer(&o);
@@ -270,7 +278,7 @@ void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
             dump_required_lvl3<SpecifiedFieldType, T>(leaf, o, o2);
             break;
         default:
-            std::cerr << "The level is too damn high!" << std::endl;
+            cerr << "The level is too damn high!" << endl;
             assert(level < 4);
             break;
     }
@@ -278,11 +286,13 @@ void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
 
 
 void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
+    ensure_dictionary(&leaf);
+
     GzipOutputStream::Options options;
     options.compression_level = 1;
     
     // Open data file
-    std::string fn = std::string(outdir) + "/" + leaf.GetName() + ".dit";
+    string fn = string(outdir) + "/" + leaf.GetName() + ".dit";
     auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
     assert(fd != -1);
     FileOutputStream fstream(fd);
@@ -290,7 +300,7 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
 
 
     // Open meta file
-    std::string mfn = fn + "m";
+    string mfn = fn + "m";
     auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
     assert(mfd != -1);
     FileOutputStream meta_fstream(mfd);
@@ -302,7 +312,7 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
 
         // determine level and type name
         int level = 0;
-        std::string tn = leaf.GetTypeName();
+        string tn = leaf.GetTypeName();
         while (tn.substr(0,6) == "vector") {
             level = level + 1;
             tn = remove_vector(tn);
@@ -334,9 +344,9 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
         } else if (tn == "UInt_t") {
             dump_required<WireFormatLite::TYPE_UINT32, UInt_t>(level, leaf, o, o2);
         } else if (tn == "string") {
-            dump_required<WireFormatLite::TYPE_STRING, std::string>(level, leaf, o, o2);
+            dump_required<WireFormatLite::TYPE_STRING, string>(level, leaf, o, o2);
         } else {
-            std::cerr << "Unknown branch type: " << tn << std::endl;
+            cerr << "Unknown branch type: " << tn << endl;
             assert(false);
         }
     }
@@ -346,16 +356,50 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     fstream.Close();
 }
 
-void dump_tree(TTree *tree, const char *outdir) {
+void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {
     if (lstat(outdir, NULL) == -1) {
         mkdir(outdir, 0777);
     }
     
-    ensure_dictionaries(tree);
-        
+    // Compile regexps
+    vector<pcre*> regexps;
+    for(int i = 0; i < regexp_patterns.size(); i++) {
+        int erroroffset = 0;
+        const char * error = NULL;
+        pcre* regexp = pcre_compile(regexp_patterns[i].c_str(), 0, 
+                        &error, &erroroffset, NULL);
+        if (not regexp or error) {
+            cerr << regexp_patterns[i] << endl;
+            for(int j = 0; j < erroroffset; j++) cerr << " ";
+            cerr << "^" << endl;
+            cerr << "Error in regular expression: " << error << endl;
+            return;
+        }
+        regexps.push_back(regexp);
+    }
+    
+
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf &leaf = *dynamic_cast<TLeaf*>(tree->GetListOfLeaves()->At(li));
-        dump_leaf(outdir, leaf, tree);
+        string name = leaf.GetName();
+        bool process = (regexps.empty() and fnmatch_patterns.empty()) ? true : false;
+        // Check regexps
+        for (int j = 0; j < regexps.size(); j++) {
+            int results[3] = {-1,-1,-1};
+            int matched = pcre_exec(regexps[j], NULL, name.c_str(), name.size(), 0, PCRE_ANCHORED, results, 3);
+            cout << "Matching " << name << " to " << regexp_patterns[j] << " = " << matched << " / " << results[1] << endl;
+            // look for full matches
+            if (matched == 1 and results[1] == name.size()) { // results[1] contains the last byte of the match.
+                process = true;
+            }
+        }
+        // check fnmatch patterns
+        for (int j = 0; j < fnmatch_patterns.size(); j++) {
+            if(fnmatch(fnmatch_patterns[j].c_str(), name.c_str(), 0) == 0) {
+                process = true;
+            }
+        }
+        if (process) dump_leaf(outdir, leaf, tree);
     }
 }
 
@@ -367,7 +411,7 @@ TTree* get_largest_tree(TFile &file) {
     
     for(int li = 0; li < keys->GetEntries(); li++) {
         TKey *l = dynamic_cast<TKey*>(keys->At(li));
-        if (std::string("TTree") != l->GetClassName())
+        if (string("TTree") != l->GetClassName())
             continue;
         
         TTree *tree = dynamic_cast<TTree*>(l->ReadObj());
@@ -382,35 +426,38 @@ TTree* get_largest_tree(TFile &file) {
     return largest_tree;
 }
 
-void dump_file(const char *filename, const char *treename, const char *outdir) {
+void dump_file(const char *filename, const char *treename, const char *outdir, 
+               const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {
     TFile file(filename);
     TTree *tree = NULL;
     
     if (treename == NULL) {
         if (verbose)
-            std::cout << "Tree not specified, finding largest tree" << std::endl;
+            cout << "Tree not specified, finding largest tree" << endl;
         tree = get_largest_tree(file);
         if (tree == NULL) {
-            std::cout << "No Trees found inside " << filename << std::endl;
+            cout << "No Trees found inside " << filename << endl;
             exit(-1);
         }
     } else {
         file.GetObject(treename, tree);
         if (tree == NULL) {
-            std::cout << "Tree (" << treename << ") not found in file (" << filename << ")." << std::endl;
+            cout << "Tree (" << treename << ") not found in file (" << filename << ")." << endl;
             exit(-1);
         }
     }
-    dump_tree(tree, outdir);
+    dump_tree(tree, outdir, fnmatch_patterns, regexp_patterns);
 }
 
 void usage(char * const *argv) {
-    std::cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [file]..." << std::endl;
+    cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [file]..." << endl;
     exit(-1);
 }
 
 int main(int argc, char * const *argv) {
     int c = 0;
+    vector<string> regexp_patterns;
+    vector<string> fnmatch_patterns;
     
     const char *treename = NULL,
                *outdir = "dit/";
@@ -422,12 +469,14 @@ int main(int argc, char * const *argv) {
             {"help",      no_argument,       0, 'h'},
             {"tree",      required_argument, 0, 't'},
             {"directory", required_argument, 0, 'D'},
+            {"match",     required_argument, 0, 'm'},
+            {"regexp",    required_argument, 0, 'e'},
             {0, 0, 0, 0}
         };
 
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "ht:D:", long_options, &option_index);
+        c = getopt_long(argc, argv, "ht:D:m:e:", long_options, &option_index);
 
         // End of options
         if (c == -1)
@@ -440,16 +489,17 @@ int main(int argc, char * const *argv) {
             if (long_options[option_index].flag != 0)
                 break;
             // Don't know when this code path is taken
-            std::cout << "option " << long_options[option_index].name;
+            cout << "option " << long_options[option_index].name;
             if (optarg)
-                std::cout << " with arg %s";
-            std::cout << std::endl;
+                cout << " with arg %s";
+            cout << endl;
             break;
 
         case 'h': usage(argv); break;
         case 't': treename = optarg; break;
         case 'D': outdir = optarg; break;
-        
+        case 'm': fnmatch_patterns.push_back(optarg); break;
+        case 'e': regexp_patterns.push_back(optarg); break;
 
         default:
             abort();
@@ -458,7 +508,7 @@ int main(int argc, char * const *argv) {
 
     if (optind < argc) {
         while (optind < argc)
-            dump_file(argv[optind++], treename, outdir);
+            dump_file(argv[optind++], treename, outdir, fnmatch_patterns, regexp_patterns);
     } else {
         usage(argv);
     }

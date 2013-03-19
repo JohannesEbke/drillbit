@@ -61,6 +61,12 @@ void ensure_dictionary(const char *class_name) {
         free(static_cast<void*>(orig_dir));
     }
 }
+
+// Generate dictionaries required to read `leaf`.
+void ensure_dictionary(TLeaf *leaf) {
+    ensure_dictionary(leaf->GetTypeName());
+}
+
 // Generate dictionaries required to read `tree`.
 void ensure_dictionaries(TTree *tree) {
     for (int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
