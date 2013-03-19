@@ -374,6 +374,7 @@ std::pair<void*, size_t> copy_file(std::string fn) {
     struct stat buffer;
     assert(fstat(fd, &buffer) != -1);
     size_t size = buffer.st_size;
+    if (size == 0) return make_pair((void*)NULL, 0);
     void * mmap = ::mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     assert(mmap != MAP_FAILED);
     void * target = malloc(size);
