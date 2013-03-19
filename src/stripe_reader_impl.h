@@ -47,17 +47,17 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
         // TYPE_INT32, TYPE_SFIXED32, TYPE_SINT32
         switch(WireFormatLite::FieldType(_field_type)) {
             case WireFormatLite::TYPE_INT32:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_INT32>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_INT32>(_data, (int32_t*)buffer);
                 break;
             case WireFormatLite::TYPE_SFIXED32:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_SFIXED32>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_SFIXED32>(_data, (int32_t*)buffer);
                 break;
             case WireFormatLite::TYPE_SINT32:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_SINT32>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_SINT32>(_data, (int32_t*)buffer);
                 break;
             // enum is listed unter INT32 as well as INT64 since it can be both.
             case WireFormatLite::TYPE_ENUM:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_ENUM>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int, WireFormatLite::TYPE_ENUM>(_data, (int*)buffer);
                 break;
             default:
                 assert(false);
@@ -66,10 +66,10 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
         // TYPE_UINT32, TYPE_FIXED32
         switch(WireFormatLite::FieldType(_field_type)) {
             case WireFormatLite::TYPE_UINT32:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_UINT32>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<uint32_t, WireFormatLite::TYPE_UINT32>(_data, (uint32_t*)buffer);
                 break;
             case WireFormatLite::TYPE_FIXED32:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_FIXED32>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<uint32_t, WireFormatLite::TYPE_FIXED32>(_data, (uint32_t*)buffer);
                 break;
             default:
                 assert(false);
@@ -78,16 +78,16 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
         // TYPE_INT64, TYPE_SFIXED64, TYPE_SINT64
         switch(WireFormatLite::FieldType(_field_type)) {
             case WireFormatLite::TYPE_INT64:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_INT64>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_INT64>(_data, (int64_t*)buffer);
                 break;
             case WireFormatLite::TYPE_SFIXED64:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_SFIXED64>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_SFIXED64>(_data, (int64_t*)buffer);
                 break;
             case WireFormatLite::TYPE_SINT64:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_SINT64>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_SINT64>(_data, (int64_t*)buffer);
                 break;
             case WireFormatLite::TYPE_ENUM:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_ENUM>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<int, WireFormatLite::TYPE_ENUM>(_data, (int*)buffer);
                 break;
             default:
                 assert(false);
@@ -96,20 +96,20 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
         // TYPE_UINT64, TYPE_FIXED64
         switch(WireFormatLite::FieldType(_field_type)) {
             case WireFormatLite::TYPE_UINT64:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_UINT64>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<uint64_t, WireFormatLite::TYPE_UINT64>(_data, (uint64_t*)buffer);
                 break;
             case WireFormatLite::TYPE_FIXED64:
-                r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_FIXED64>(_data, buffer);
+                r = WireFormatLite::ReadPrimitive<uint64_t, WireFormatLite::TYPE_FIXED64>(_data, (uint64_t*)buffer);
                 break;
             default:
                 assert(false);
         }
     } else if (std::is_same<T, float>::value) {
-        r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_FLOAT>(_data, buffer);
+        r = WireFormatLite::ReadPrimitive<float, WireFormatLite::TYPE_FLOAT>(_data, (float*)buffer);
     } else if (std::is_same<T, double>::value) {
-        r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_DOUBLE>(_data, buffer);
+        r = WireFormatLite::ReadPrimitive<double, WireFormatLite::TYPE_DOUBLE>(_data, (double*)buffer);
     } else if (std::is_same<T, bool>::value) {
-        r = WireFormatLite::ReadPrimitive<T, WireFormatLite::TYPE_BOOL>(_data, buffer);
+        r = WireFormatLite::ReadPrimitive<bool, WireFormatLite::TYPE_BOOL>(_data, (bool*)buffer);
     } else if (std::is_same<T, std::string>::value) {
         uint32_t size;
         r = _data->ReadVarint32(&size);

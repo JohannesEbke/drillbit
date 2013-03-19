@@ -21,6 +21,8 @@
 
 #include "drillbit.pb.h"
 #include "root_dictionaries.h"
+#include "stripe_reader.h"
+#include "stripe_reader_impl.h"
 
 using namespace std;
 
@@ -31,36 +33,51 @@ using google::protobuf::io::CodedInputStream;
 using google::protobuf::FieldDescriptor;
 using google::protobuf::internal::WireFormatLite;
 
-class StripeReader {
+// The TreeStripeReader interface
+class RootTreeStripeReader {
  public:
-    // Initialize everything to 0
-    StripeReader() : info(), _next_event_count(0), _last_tag(0), _meta(NULL), _data(NULL), _branch(NULL) {};
+    virtual bool next() = 0;
+};
 
-    ~StripeReader() {
-        free(_buffer);
+
+template<typename T>
+class RootTreeTypedStripeReader : public RootTreeStripeReader {
+ public:
+    RootTreeTypedStripeReader() : _buffer(NULL), _dl(0), _rl(0), _level(0) {};
+
+    static RootTreeTypedStripeReader<T>* Make(StripeReader *sreader, TTree *tree) {
+        assert(sreader->is_correct_type<T>());
+        RootTreeTypedStripeReader<T>* reader = new RootTreeTypedStripeReader<T>();
+        reader->_level = sreader->info().level();
+        reader->_reader = sreader;
+        reader->init_buffer();
+        reader->create_branch(tree);
     }
 
-    /// Make a StripeReader from meta/data input streams
-    static StripeReader * Make(CodedInputStream * meta, CodedInputStream * data) {
-        StripeReader * stripe = new StripeReader();
-        stripe->_meta = meta;
-        stripe->_data = data;
-        // Get the info message from the top
-        uint32_t size = 0;
-        assert(meta->ReadVarint32(&size));
-        auto limit = meta->PushLimit(size);
-        stripe->info.ParseFromCodedStream(meta);
-        meta->PopLimit(limit);
-        assert(stripe->info.stripe_version() == 1);
-        stripe->initialize();
-        return stripe;
+    bool next() {
+        if (_level == 0) {
+            if (not _reader->next_line(_rl, _dl, &_buf)) return false;
+        } else {
+            vector_filler_lvl();
+        }
+        return true;
     }
+
+ private:
+
+    void * _buffer;
+    uint8_t _dl, _rl, _level;
+    T _buf;
+    StripeReader *_reader;
+    TBranch * _branch;
 
     // Create a branch of this type in the given ROOT Tree and hold on to it
     void create_branch(TTree* tree) {
+        const StripeInfo &info = _reader->info();
         ensure_dictionary(info.root_type().c_str());
         // Create Branch
-        if (info.level() == 0) {
+        if (_level == 0) {
+
             // can be Int_t, UInt_t, Double_t, Float_t, Bool_t
             if (info.root_type() == "Int_t") {
                 _branch = tree->Branch(info.root_name().c_str(), _buffer, (info.root_name() + "/I").c_str());
@@ -78,205 +95,63 @@ class StripeReader {
         } else {
             _branch = tree->Branch(info.root_name().c_str(), info.root_type().c_str(), &_buffer);
         }
-        //_branch->SetFile(f);
     }
 
-    template <typename T>
-    void* init_vector(uint32_t level) {
-        if (level == 1) {
-            return new std::vector<T>();
-        } else if (level == 2) {
-            return new std::vector<std::vector<T>>();
-        } else if (level == 3) {
-            return new std::vector<std::vector<std::vector<T>>>();
-        } else if (level == 4) {
-            return new std::vector<std::vector<std::vector<std::vector<T>>>>();
+    void init_buffer() {
+        if (_level == 0) {
+            _buffer = new T();
+        } else if (_level == 1) {
+            _buffer = new std::vector<T>();
+        } else if (_level == 2) {
+            _buffer = new std::vector<std::vector<T>>();
+        } else if (_level == 3) {
+            _buffer = new std::vector<std::vector<std::vector<T>>>();
+        } else if (_level == 4) {
+            _buffer = new std::vector<std::vector<std::vector<std::vector<T>>>>();
         } else {
             assert(false);
         }
     }
 
-    void initialize() {
-        _wiretype = WireFormatLite::WireTypeForFieldType(WireFormatLite::FieldType(info.field_type()));
-        switch(WireFormatLite::FieldTypeToCppType(WireFormatLite::FieldType(info.field_type()))) {
-            case WireFormatLite::CPPTYPE_INT32:
-            case WireFormatLite::CPPTYPE_UINT32:
-            case WireFormatLite::CPPTYPE_FLOAT:
-            case WireFormatLite::CPPTYPE_BOOL:
-            case WireFormatLite::CPPTYPE_ENUM:
-                _buffersize = 4;
-                break;
-            case WireFormatLite::CPPTYPE_INT64:
-            case WireFormatLite::CPPTYPE_UINT64:
-            case WireFormatLite::CPPTYPE_DOUBLE:
-                _buffersize = 8;
-                break;
-            case WireFormatLite::CPPTYPE_STRING:
-                _buffersize = 0;
-                break;
-            case WireFormatLite::CPPTYPE_MESSAGE:
-            default:
-                std::cerr << "Unknown/Unsupported field type " << info.field_type() << std::endl;
-                assert(false);
-        }
-        if (info.level() == 0) {
-            _buffer = malloc(_buffersize);
-            memset(_buffer, 0, _buffersize);
-        } else {
-            // read the first tag so that last_tag is correct
-            switch(WireFormatLite::FieldTypeToCppType(WireFormatLite::FieldType(info.field_type()))) {
-                case WireFormatLite::CPPTYPE_INT32:
-                    _buffer = init_vector<int32_t>(info.level()); break;
-                case WireFormatLite::CPPTYPE_UINT32:
-                    _buffer = init_vector<uint32_t>(info.level()); break;
-                case WireFormatLite::CPPTYPE_FLOAT:
-                    _buffer = init_vector<float>(info.level()); break;
-                case WireFormatLite::CPPTYPE_BOOL:
-                    _buffer = init_vector<bool>(info.level()); break;
-                case WireFormatLite::CPPTYPE_ENUM:
-                    _buffer = init_vector<int>(info.level()); break;
-                case WireFormatLite::CPPTYPE_INT64:
-                    _buffer = init_vector<int64_t>(info.level()); break;
-                case WireFormatLite::CPPTYPE_UINT64:
-                    _buffer = init_vector<uint64_t>(info.level()); break;
-                case WireFormatLite::CPPTYPE_DOUBLE:
-                    _buffer = init_vector<double>(info.level()); break;
-                case WireFormatLite::CPPTYPE_STRING:
-                    _buffer = init_vector<std::string>(info.level()); break;
-                case WireFormatLite::CPPTYPE_MESSAGE:
-                default:
-                    std::cerr << "Unknown/Unsupported field type " << info.field_type() << std::endl;
-                    assert(false);
-            }
-            if (!_meta->ReadVarint32(&_last_tag)) {
-                _last_tag = UINT_MAX;
-            }
-        }
-
-        // now _buffer is allocated and zeroed!
+    void decode_into(std::vector<T> &v, int rl) {
+        assert(rl == 0 || rl == 1);
+        v.push_back(_buf);
     }
 
-    bool decode_32(uint32_t *buf) {
-        switch(info.field_type()) {
-            case WireFormatLite::TYPE_FLOAT:
-                WireFormatLite::ReadPrimitive<float, WireFormatLite::TYPE_FLOAT>(_data, (float*)buf); break;
-            case WireFormatLite::TYPE_INT32:
-                WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_INT32>(_data, (int32_t*)buf); break;
-            case WireFormatLite::TYPE_SINT32:
-                WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_SINT32>(_data, (int32_t*)buf); break;
-            case WireFormatLite::TYPE_SFIXED32:
-                WireFormatLite::ReadPrimitive<int32_t, WireFormatLite::TYPE_SFIXED32>(_data, (int32_t*)buf); break;
-            case WireFormatLite::TYPE_FIXED32:
-                WireFormatLite::ReadPrimitive<uint32_t, WireFormatLite::TYPE_FIXED32>(_data, (uint32_t*)buf); break;
-            case WireFormatLite::TYPE_UINT32:
-                WireFormatLite::ReadPrimitive<uint32_t, WireFormatLite::TYPE_UINT32>(_data, (uint32_t*)buf); break;
-            case WireFormatLite::TYPE_ENUM:
-                WireFormatLite::ReadPrimitive<int, WireFormatLite::TYPE_ENUM>(_data, (int*)buf); break;
-            case WireFormatLite::TYPE_BOOL:
-                WireFormatLite::ReadPrimitive<bool, WireFormatLite::TYPE_BOOL>(_data, (bool*)buf); break;
-            default:
-                std::cerr << "Unknown 32 bit field type " << info.field_type() << std::endl;
-                assert(false);
-        }
-        return true;
-    }
-    
-    bool decode_64(uint64_t *buf) {
-        switch(info.field_type()) {
-            case WireFormatLite::TYPE_DOUBLE:
-                WireFormatLite::ReadPrimitive<double, WireFormatLite::TYPE_DOUBLE>(_data, (double*)buf); break;
-            case WireFormatLite::TYPE_INT64:
-                WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_INT64>(_data, (int64_t*)buf); break;
-            case WireFormatLite::TYPE_SINT64:
-                WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_SINT64>(_data, (int64_t*)buf); break;
-            case WireFormatLite::TYPE_SFIXED64:
-                WireFormatLite::ReadPrimitive<int64_t, WireFormatLite::TYPE_SFIXED64>(_data, (int64_t*)buf); break;
-            case WireFormatLite::TYPE_FIXED64:
-                WireFormatLite::ReadPrimitive<uint64_t, WireFormatLite::TYPE_FIXED64>(_data, (uint64_t*)buf); break;
-            case WireFormatLite::TYPE_UINT64:
-                WireFormatLite::ReadPrimitive<uint64_t, WireFormatLite::TYPE_UINT64>(_data, (uint64_t*)buf); break;
-            default:
-                std::cerr << "Unknown 64 bit field type " << info.field_type() << std::endl;
-                assert(false);
-        }
-        return true;
-    }
-
-    bool decode_string(std::string &s) {
-        //std::cerr << "Level 0" << std::endl;
-        if (_wiretype == WireFormatLite::WIRETYPE_LENGTH_DELIMITED) {
-            uint32_t size;
-            if (!_data->ReadVarint32(&size)) return false;
-            assert(_data->ReadString(&s, size));
-        } else {
-            std::cout << "UNEXPECTED WIRE TYPE " << _wiretype << std::endl;
-            assert(false);
-        }
-        return true;
-    }
-
-    template<typename T>
-    void decode_into(std::vector<std::vector<T>> &v, int rl) {
+    template<typename U>
+    void decode_into(std::vector<std::vector<U>> &v, int rl) {
         if (rl == 0 || rl == 1) {
             assert(v.empty() or rl == 1);
-            v.push_back(std::vector<T>());
+            v.push_back(std::vector<U>());
             rl = 1;
         }
         decode_into(v[v.size()-1], rl - 1);
     }
 
-    void decode_into(std::vector<std::string> &v, int rl) {
-        assert(rl == 0 || rl == 1);
-        std::string b;
-        assert(decode_string(b));
-        v.push_back(b);
-    }
-
-    template<typename T>
-    void decode_into(std::vector<T> &v, int rl) {
-        assert(rl == 0 || rl == 1);
-        if (_buffersize == 4) {
-            uint32_t b;
-            assert(decode_32(&b));
-            v.push_back(*reinterpret_cast<T*>(&b));
-        } else if (_buffersize == 8) {
-            uint64_t b;
-            assert(decode_64(&b));
-            v.push_back(*reinterpret_cast<T*>(&b));
-        } else {
-            assert(false);
-        }
-    }
-
-    template<typename T> 
+    template<typename U> 
     bool vector_filler() {
-        T & v = *((T*) _buffer);
+        U & v = *((U*) _buffer);
         v.clear();
-        uint32_t level = info.level();
+        uint32_t level = _reader->info().level();
         bool first = true;
         while (true) {
-            if (_last_tag == UINT32_MAX) return false;
-            uint32_t dl_rl = _last_tag; // look at the last read tag
-            uint32_t RL_M = level == 1 ? 2 : 4;
-            uint32_t rl = dl_rl / RL_M;
-            uint32_t dl = dl_rl % RL_M;
-            //std::cout << "L " << level << " RL " << rl << " DL " << dl << std::endl;
+            if (_dl == UINT8_MAX) return false;
             //std::cerr << "DLRL " << dl_rl << std::endl;
-            if (dl_rl == 0) {
+            if (_dl == 0 and _rl == 0) {
                 if (first) {
                     //std::cout << i << ":" << "NULL" << std::endl;
-                    if (!_meta->ReadVarint32(&_last_tag)) _last_tag = UINT32_MAX; // look at the next tag
+                    if (not _reader->next_line(_rl, _dl, &_buf)) _dl = UINT8_MAX;
                     break; // no fields in this event
                 } else {
                     break; // no more fields in this event
                 }
-            } else if (rl == 0) {
+            } else if (_rl == 0) {
                 if (first) {
-                    if (dl == level) {
-                        decode_into(v, rl);
+                    if (_dl == level) {
+                        decode_into(v, _rl);
                     }
-                    if (!_meta->ReadVarint32(&_last_tag)) {
-                        _last_tag = UINT32_MAX; // look at the next tag
+                    if (not _reader->next_line(_rl, _dl, &_buf)) {
+                        _dl = UINT8_MAX; // look at the next tag
                         break;
                     }
                 } else {
@@ -285,11 +160,11 @@ class StripeReader {
                     break;
                 }
             } else {
-                if (dl == level) {
-                    decode_into(v, rl);
+                if (_dl == level) {
+                    decode_into(v, _rl);
                 }
-                if (!_meta->ReadVarint32(&_last_tag)) {
-                    _last_tag = UINT32_MAX; // look at the next tag
+                if (not _reader->next_line(_rl, _dl, &_buf)) {
+                    _dl = UINT8_MAX; // look at the next tag
                     break;
                 }
             }
@@ -303,8 +178,8 @@ class StripeReader {
         return true;
     }
                     
-    template<typename T> bool vector_filler_lvl(int level) {
-        switch(level) {
+    bool vector_filler_lvl() {
+        switch(_level) {
             case 1: return vector_filler<std::vector<T>>();
             case 2: return vector_filler<std::vector<std::vector<T>>>();
             case 3: return vector_filler<std::vector<std::vector<std::vector<T>>>>();
@@ -313,61 +188,21 @@ class StripeReader {
         }
         return false;
     }
-
-    bool next() {
-        int level = info.level();
-        if (level == 0) {
-            //std::cerr << "Level 0" << std::endl;
-            if (_buffersize == 4) {
-                if(!decode_32((uint32_t*)_buffer)) return false;
-            } else if (_buffersize == 8) {
-                if(!decode_64((uint64_t*)_buffer)) return false;
-            } else {
-                std::cout << "Unexpected buffersize: " << _buffersize << std::endl;
-                assert(false);
-            }
-        } else {
-            switch(WireFormatLite::FieldTypeToCppType(WireFormatLite::FieldType(info.field_type()))) {
-                case WireFormatLite::CPPTYPE_INT32:
-                    if(!vector_filler_lvl<int32_t>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_UINT32:
-                    if(!vector_filler_lvl<uint32_t>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_FLOAT:
-                    if(!vector_filler_lvl<float>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_BOOL:
-                    if(!vector_filler_lvl<bool>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_ENUM:
-                    if(!vector_filler_lvl<int>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_INT64:
-                    if(!vector_filler_lvl<int64_t>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_UINT64:
-                    if(!vector_filler_lvl<uint64_t>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_DOUBLE:
-                    if(!vector_filler_lvl<double>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_STRING:
-                    if(!vector_filler_lvl<std::string>(level)) return false; break;
-                case WireFormatLite::CPPTYPE_MESSAGE:
-                default:
-                    std::cerr << "Unknown/Unsupported field type " << info.field_type() << std::endl;
-                    assert(false);
-            }
-        }
-        return true;
-    }
-
-    StripeInfo info;
- private:
-    int _next_event_count;
-    uint32_t _last_tag;
-    CodedInputStream * _meta, * _data;
-    TBranch * _branch;
-    WireFormatLite::WireType _wiretype;
-    void* _buffer;
-    uint32_t _buffersize;
-    std::string _stringbuffer;
 };
 
-uint64_t sum;
+RootTreeStripeReader* MakeReaderAuto(StripeReader *s, TTree *t) {
+#define TRY_TYPE(T) if (s->is_correct_type<T>()) return RootTreeTypedStripeReader<T>::Make(s, t);
+    TRY_TYPE(int32_t)
+    TRY_TYPE(uint32_t)
+    TRY_TYPE(float)
+    TRY_TYPE(bool)
+    TRY_TYPE(int)
+    TRY_TYPE(int64_t)
+    TRY_TYPE(uint64_t)
+    TRY_TYPE(double)
+    TRY_TYPE(std::string)
+#undef TRY_TYPE
+}
 
 std::pair<void*, size_t> copy_file(std::string fn) {
     int fd = open(fn.c_str(), O_RDONLY);
@@ -443,11 +278,10 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     TFile f(name.c_str(), "RECREATE");
     TTree * tree = new TTree("composed", "Composed Tree");
 
-    std::vector<StripeReader*> readers;
+    std::vector<RootTreeStripeReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {
-        auto * reader = StripeReader::Make(cm[i], cd[i]);
-        reader->create_branch(tree);
-        readers.push_back(reader);
+        auto * sreader = StripeReader::Make(cm[i], cd[i]);
+        readers.push_back(MakeReaderAuto(sreader, tree));
     }
 
     std::cerr << "Run over all events and collate them..." << std::endl;
