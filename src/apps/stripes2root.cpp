@@ -52,15 +52,16 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
         reader->_reader = sreader;
         reader->init_buffer();
         reader->create_branch(tree);
+        return reader;
     }
 
     bool next() {
         if (_level == 0) {
-            if (not _reader->next_line(_rl, _dl, &_buf)) return false;
+            return _reader->next_line(_rl, _dl, &_buf);
         } else {
-            vector_filler_lvl();
+            return vector_filler_lvl();
         }
-        return true;
+
     }
 
  private:
@@ -202,6 +203,7 @@ RootTreeStripeReader* MakeReaderAuto(StripeReader *s, TTree *t) {
     TRY_TYPE(double)
     TRY_TYPE(std::string)
 #undef TRY_TYPE
+    assert(false);
 }
 
 std::pair<void*, size_t> copy_file(std::string fn) {
@@ -280,7 +282,7 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
 
     std::vector<RootTreeStripeReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {
-        auto * sreader = StripeReader::Make(cm[i], cd[i]);
+        StripeReader * sreader = StripeReader::Make(cm[i], cd[i]);
         readers.push_back(MakeReaderAuto(sreader, tree));
     }
 

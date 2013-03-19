@@ -36,11 +36,13 @@ bool StripeReader::is_correct_type() const {
 // if the definition level is equal to the maximum possible, the 
 // corresponding data is written to buffer, which is otherwise untouched.
 template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *buffer) {
-    uint32_t tag;
-    if (not _meta->ReadVarint32(&tag)) { return false; };
-    rl = tag / _rl_multiplier;
-    dl = tag % _rl_multiplier;
-    if (dl < _max_dl) return true;
+    if (_max_dl > 0) {
+        uint32_t tag = 0;
+        if (not _meta->ReadVarint32(&tag)) return false;
+        rl = tag / _rl_multiplier;
+        dl = tag % _rl_multiplier;
+        if (dl < _max_dl) return true;
+    }
 
     bool r = false;
     if (std::is_same<T, int32_t>::value) {
@@ -119,8 +121,8 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
     } else assert (false);
 
     // If the data read fails here we have a corrupted file/stream
-    assert(r);
-    return true;
+    if (_max_dl > 0) assert(r);
+    return r;
 }
 
 #endif
