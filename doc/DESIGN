@@ -49,3 +49,4 @@ Drillbit plans to support the following workflows:
 * Run a given C++ tool with drillbit input and output
 * Run an A4 analysis on a drillbit file, A4 output
 * Run a native drillbit analysis, drillbit file output
+* Request a single column of metadata
