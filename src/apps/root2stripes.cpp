@@ -17,7 +17,9 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
+#if HAVE_PCRE
 #include <pcre.h>
+#endif
 #include <fnmatch.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -361,6 +363,7 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
         mkdir(outdir, 0777);
     }
     
+#if HAVE_PCRE
     // Compile regexps
     vector<pcre*> regexps;
     for(int i = 0; i < regexp_patterns.size(); i++) {
@@ -377,11 +380,13 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
         }
         regexps.push_back(regexp);
     }
-    
+#endif
 
     for(int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf &leaf = *dynamic_cast<TLeaf*>(tree->GetListOfLeaves()->At(li));
         string name = leaf.GetName();
+
+#if HAVE_PCRE
         bool process = (regexps.empty() and fnmatch_patterns.empty()) ? true : false;
         // Check regexps
         for (int j = 0; j < regexps.size(); j++) {
@@ -393,6 +398,9 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
                 process = true;
             }
         }
+#else
+        bool process = fnmatch_patterns.empty() ? true : false;
+#endif
         // check fnmatch patterns
         for (int j = 0; j < fnmatch_patterns.size(); j++) {
             if(fnmatch(fnmatch_patterns[j].c_str(), name.c_str(), 0) == 0) {
@@ -450,7 +458,11 @@ void dump_file(const char *filename, const char *treename, const char *outdir,
 }
 
 void usage(char * const *argv) {
-    cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [file]..." << endl;
+#if HAVE_PCRE
+    cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [-m pattern] [-e regexp] [file]..." << endl;
+#else
+    cout << "usage: " << basename(argv[0]) << " [-h|--help] [-t treename] [-m pattern] [file]..." << endl;
+#endif
     exit(-1);
 }
 
@@ -470,13 +482,19 @@ int main(int argc, char * const *argv) {
             {"tree",      required_argument, 0, 't'},
             {"directory", required_argument, 0, 'D'},
             {"match",     required_argument, 0, 'm'},
+#if HAVE_PCRE
             {"regexp",    required_argument, 0, 'e'},
+#endif
             {0, 0, 0, 0}
         };
 
         int option_index = 0;
 
+#if HAVE_PCRE
         c = getopt_long(argc, argv, "ht:D:m:e:", long_options, &option_index);
+#else
+        c = getopt_long(argc, argv, "ht:D:m:", long_options, &option_index);
+#endif
 
         // End of options
         if (c == -1)

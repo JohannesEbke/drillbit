@@ -11,9 +11,11 @@ def configure(conf):
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
     conf.env.append_value("RPATH", [conf.env.LIBDIR])
+
     conf.magic_project()
     conf.magic_check_library("root")
     conf.magic_check_library("protobuf")
+    conf.magic_check_lib("pcre", mandatory=False)
 
 def build(bld):
     bld.load(packages)

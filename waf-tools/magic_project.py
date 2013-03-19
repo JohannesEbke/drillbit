@@ -116,6 +116,16 @@ def magic_check_library(conf, package, mandatory=True, **kwargs):
     conf.env.HAVE_LIBRARY[package] = res
     return res
 
+@conf
+def magic_check_lib(conf, lib, mandatory=True, **kwargs):
+    conf.define("HAVE_"+lib.upper(), 0)
+    headers[lib] = lib + ".h"
+    res = conf.check(features='cxx cxxprogram', lib=lib,
+        uselib_store=lib, mandatory=mandatory, **kwargs)
+    conf.define("HAVE_"+lib.upper(), 1)
+    conf.env.HAVE_LIBRARY[lib] = res
+    return res 
+
 def build(bld):
     bld(features="cxx cxxshlib", 
         source=glob_for(bld, "src", ext_cpp),
