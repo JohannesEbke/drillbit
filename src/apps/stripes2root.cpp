@@ -440,7 +440,6 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     std::cerr << "Looking up column metadata and creating root tree..." << std::endl;
 
     TFile f(name.c_str(), "RECREATE");
-    f.cd();
     TTree * tree = new TTree("composed", "Composed Tree");
 
     std::vector<StripeReader*> readers;
@@ -463,11 +462,13 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
                 break;
             }
         }
-        tree->Fill();
-        event_number++;
-        //if (event_number == 1000) break;
+        if (running) {
+            tree->Fill();
+            event_number++;
+        }
     }
-    f.Write();
+    tree->Write("composed", TObject::kOverwrite);
+    //f.Write();
     f.Close();
 }
 
