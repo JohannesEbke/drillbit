@@ -35,13 +35,18 @@ bool StripeReader::is_correct_type() const {
 // returns repetition and definition level of the next metadata line
 // if the definition level is equal to the maximum possible, the 
 // corresponding data is written to buffer, which is otherwise untouched.
-template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *buffer) {
-    if (_max_dl > 0) {
+template<typename T, int level> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *buffer) {
+    if (level > 0) {
         uint32_t tag = 0;
         if (not _meta->ReadVarint32(&tag)) return false;
-        rl = tag / _rl_multiplier;
-        dl = tag % _rl_multiplier;
-        if (dl < _max_dl) return true;
+        if (level == 1) {
+            dl = tag % 2;
+            rl = tag / 2;
+        } else {
+            dl = tag % 4;
+            rl = tag / 4;
+        }
+        if (dl != level) return true;
     }
 
     bool r = false;
@@ -121,7 +126,7 @@ template<typename T> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl, T *b
     } else assert (false);
 
     // If the data read fails here we have a corrupted file/stream
-    if (_max_dl > 0) assert(r);
+    if (level > 0) assert(r);
     return r;
 }
 

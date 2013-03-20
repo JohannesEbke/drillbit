@@ -23,7 +23,7 @@ class StripeReader {
     // returns repetition and definition level of the next metadata line
     // if the definition level is equal to the maximum possible, the 
     // corresponding data is written to buffer, which is otherwise untouched.
-    template<typename T> bool next_line(uint8_t &rl, uint8_t &dl, T *buffer);
+    template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl, T *buffer);
  private:
     StripeReader() : _info(), _meta(NULL), _data(NULL) {};
     StripeInfo _info;

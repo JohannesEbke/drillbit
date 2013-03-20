@@ -40,15 +40,15 @@ class RootTreeStripeReader {
 };
 
 
-template<typename T>
+template<typename T, int level>
 class RootTreeTypedStripeReader : public RootTreeStripeReader {
  public:
-    RootTreeTypedStripeReader() : _buffer(NULL), _dl(0), _rl(0), _level(0) {};
+    RootTreeTypedStripeReader() : _buffer(NULL), _dl(0), _rl(0) {};
 
-    static RootTreeTypedStripeReader<T>* Make(StripeReader *sreader, TTree *tree) {
+    static RootTreeTypedStripeReader<T,level>* Make(StripeReader *sreader, TTree *tree) {
         assert(sreader->is_correct_type<T>());
-        RootTreeTypedStripeReader<T>* reader = new RootTreeTypedStripeReader<T>();
-        reader->_level = sreader->info().level();
+        RootTreeTypedStripeReader<T,level>* reader = new RootTreeTypedStripeReader<T,level>();
+        assert(level == sreader->info().level());
         reader->_reader = sreader;
         reader->init_buffer();
         reader->create_branch(tree);
@@ -56,18 +56,20 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
     }
 
     bool next() {
-        if (_level == 0) {
-            return _reader->next_line(_rl, _dl, &_buf);
-        } else {
-            return vector_filler_lvl();
+        switch(level) {
+            case 0: return _reader->next_line<T,level>(_rl, _dl, &_buf);
+            case 1: return vector_filler<std::vector<T>>();
+            case 2: return vector_filler<std::vector<std::vector<T>>>();
+            case 3: return vector_filler<std::vector<std::vector<std::vector<T>>>>();
+            case 4: return vector_filler<std::vector<std::vector<std::vector<std::vector<T>>>>>();
         }
-
+        assert(false);
     }
 
  private:
 
     void * _buffer;
-    uint8_t _dl, _rl, _level;
+    uint8_t _dl, _rl;
     T _buf;
     StripeReader *_reader;
     TBranch * _branch;
@@ -77,8 +79,7 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
         const StripeInfo &info = _reader->info();
         ensure_dictionary(info.root_type().c_str());
         // Create Branch
-        if (_level == 0) {
-
+        if (level == 0) {
             // can be Int_t, UInt_t, Double_t, Float_t, Bool_t
             if (info.root_type() == "Int_t") {
                 _branch = tree->Branch(info.root_name().c_str(), _buffer, (info.root_name() + "/I").c_str());
@@ -99,15 +100,15 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
     }
 
     void init_buffer() {
-        if (_level == 0) {
+        if (level == 0) {
             _buffer = new T();
-        } else if (_level == 1) {
+        } else if (level == 1) {
             _buffer = new std::vector<T>();
-        } else if (_level == 2) {
+        } else if (level == 2) {
             _buffer = new std::vector<std::vector<T>>();
-        } else if (_level == 3) {
+        } else if (level == 3) {
             _buffer = new std::vector<std::vector<std::vector<T>>>();
-        } else if (_level == 4) {
+        } else if (level == 4) {
             _buffer = new std::vector<std::vector<std::vector<std::vector<T>>>>();
         } else {
             assert(false);
@@ -133,7 +134,6 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
     bool vector_filler() {
         U & v = *((U*) _buffer);
         v.clear();
-        uint32_t level = _reader->info().level();
         bool first = true;
         while (true) {
             if (_dl == UINT8_MAX) return false;
@@ -141,7 +141,7 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
             if (_dl == 0 and _rl == 0) {
                 if (first) {
                     //std::cout << i << ":" << "NULL" << std::endl;
-                    if (not _reader->next_line(_rl, _dl, &_buf)) _dl = UINT8_MAX;
+                    if (not _reader->next_line<T,level>(_rl, _dl, &_buf)) _dl = UINT8_MAX;
                     break; // no fields in this event
                 } else {
                     break; // no more fields in this event
@@ -151,7 +151,7 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
                     if (_dl == level) {
                         decode_into(v, _rl);
                     }
-                    if (not _reader->next_line(_rl, _dl, &_buf)) {
+                    if (not _reader->next_line<T,level>(_rl, _dl, &_buf)) {
                         _dl = UINT8_MAX; // look at the next tag
                         break;
                     }
@@ -164,7 +164,7 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
                 if (_dl == level) {
                     decode_into(v, _rl);
                 }
-                if (not _reader->next_line(_rl, _dl, &_buf)) {
+                if (not _reader->next_line<T,level>(_rl, _dl, &_buf)) {
                     _dl = UINT8_MAX; // look at the next tag
                     break;
                 }
@@ -179,20 +179,11 @@ class RootTreeTypedStripeReader : public RootTreeStripeReader {
         return true;
     }
                     
-    bool vector_filler_lvl() {
-        switch(_level) {
-            case 1: return vector_filler<std::vector<T>>();
-            case 2: return vector_filler<std::vector<std::vector<T>>>();
-            case 3: return vector_filler<std::vector<std::vector<std::vector<T>>>>();
-            case 4: return vector_filler<std::vector<std::vector<std::vector<std::vector<T>>>>>();
-            default: assert(false);
-        }
-        return false;
-    }
 };
 
-RootTreeStripeReader* MakeReaderAuto(StripeReader *s, TTree *t) {
-#define TRY_TYPE(T) if (s->is_correct_type<T>()) return RootTreeTypedStripeReader<T>::Make(s, t);
+template<int level>
+RootTreeStripeReader* MakeReaderAutoType(StripeReader *s, TTree *t) {
+#define TRY_TYPE(T) if (s->is_correct_type<T>()) return RootTreeTypedStripeReader<T,level>::Make(s, t);
     TRY_TYPE(int32_t)
     TRY_TYPE(uint32_t)
     TRY_TYPE(float)
@@ -203,6 +194,17 @@ RootTreeStripeReader* MakeReaderAuto(StripeReader *s, TTree *t) {
     TRY_TYPE(double)
     TRY_TYPE(std::string)
 #undef TRY_TYPE
+    assert(false);
+}
+
+RootTreeStripeReader* MakeReaderAuto(StripeReader *s, TTree *t) {
+    switch(s->info().level()) {
+        case 0: return MakeReaderAutoType<0>(s,t);
+        case 1: return MakeReaderAutoType<1>(s,t);
+        case 2: return MakeReaderAutoType<2>(s,t);
+        case 3: return MakeReaderAutoType<3>(s,t);
+        case 4: return MakeReaderAutoType<4>(s,t);
+    }
     assert(false);
 }
 
