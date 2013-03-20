@@ -167,13 +167,14 @@ void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
-            o2.WriteVarint32(DL*0 + RL*0);
-        }
-        for (int j = 0; j < data->size(); j++) {
-            int dl = 1;
-            int rl = (j > 0 ? 1 : 0);
-            o2.WriteVarint32(dl*DL + rl*RL);
-            writer.WriteOut(data->at(j));
+            o2.WriteVarint32(0*DL + 0*RL);
+        } else {
+            int rl = 0;
+            for (auto j = data->cbegin(); j != data->cend(); j++) {
+                o2.WriteVarint32(1*DL + rl*RL);
+                writer.WriteOut(*j);
+                rl = 1;
+            }
         }
     }
 }
@@ -194,20 +195,21 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
-        if (data->size() == 0) {
+        if (data->empty()) {
             o2.WriteVarint32(DL*0 + RL*0);
-        }
-        for (int j = 0; j < data->size(); j++) {
-            if (data->at(j).size() == 0) {
-                int dl = 1;
-                int rl = (j > 0 ? 1 : 0);
-                o2.WriteVarint32(dl*DL + rl*RL);
-            }
-            for (int k = 0; k < data->at(j).size(); k++) {
-                int dl = 2;
-                int rl = (k > 0 ? 2 : (j > 0 ? 1 : 0));
-                o2.WriteVarint32(dl*DL + rl*RL);
-                writer.WriteOut(data->at(j).at(k));
+        } else {
+            int rl = 0;
+            for (auto j = data->cbegin(); j != data->cend(); j++) {
+                if (j->empty()) {
+                    o2.WriteVarint32(1*DL + rl*RL);
+                } else {
+                    for (auto k = j->cbegin(); k != j->cend(); k++) {
+                        o2.WriteVarint32(2*DL + rl*RL);
+                        writer.WriteOut(*k);
+                        rl = 2;
+                    }
+                }
+                rl = 1;
             }
         }
     }
@@ -230,27 +232,28 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
-        if (data->size() == 0) {
+        if (data->empty()) {
             o2.WriteVarint32(DL*0 + RL*0);
-        }
-        for (int j = 0; j < data->size(); j++) {
-            if (data->at(j).size() == 0) {
-                int dl = 1;
-                int rl = (j == 0) ? 0 : 1;
-                o2.WriteVarint32(dl*DL + rl*RL);
-            }
-            for (int k = 0; k < data->at(j).size(); k++) {
-                if (data->at(j).at(k).size() == 0) {
-                    int dl = 2;
-                    int rl = (k > 0 ? 2 : (j > 0 ? 1 : 0));
-                    o2.WriteVarint32(dl*DL + rl*RL);
+        } else {
+            int rl = 0;
+            for (auto j = data->cbegin(); j != data->cend(); j++) {
+                if (j->empty()) {
+                    o2.WriteVarint32(1*DL + rl*RL);
+                } else {
+                    for (auto k = j->cbegin(); k != j->cend(); k++) {
+                        if (k->empty()) {
+                            o2.WriteVarint32(2*DL + rl*RL);
+                        } else {
+                            for (auto l = k->cbegin(); l != k->cend(); l++) {
+                                o2.WriteVarint32(3*DL + rl*RL);
+                                writer.WriteOut(*l);
+                                rl = 3;
+                            }
+                        }
+                        rl = 2;
+                    }
                 }
-                for (int l = 0; l < data->at(j).at(k).size(); l++) {
-                    int dl = 3;
-                    int rl = (l > 0 ? 3 : (k > 0 ? 2 : (j > 0 ? 1 : 0)));
-                    o2.WriteVarint32(dl*DL + rl*RL);
-                    writer.WriteOut(data->at(j).at(k).at(l));
-                }
+                rl = 1;
             }
         }
     }

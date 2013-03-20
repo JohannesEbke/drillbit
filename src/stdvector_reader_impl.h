@@ -90,7 +90,7 @@ void TypedStdVectorReader<T,level>::decode_into(std::vector<std::vector<U>> &v, 
         v.push_back(std::vector<U>());
         rl = 1;
     }
-    decode_into(v[v.size()-1], rl - 1);
+    decode_into(v.back(), rl - 1);
 }
 
 #endif

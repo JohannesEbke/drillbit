@@ -65,23 +65,21 @@ pair<void*, size_t> copy_file_decomp(string fn) {
 };
 
 vector<pair<CodedInputStream*, CodedInputStream*>> open_stripes(const vector<string>& dit_files) {
-    vector<std::pair<void*,size_t> > dit, ditm;
-    vector<ArrayInputStream*> id, im;
-    vector<GzipInputStream*> zd, zm;
     vector<pair<CodedInputStream*, CodedInputStream*>> coded;
-
 #if 1 // this version seems to perform better for my work machine and the big laptop
     std::cerr << "Loading column data..." << std::endl;
     for (int i = 0; i < dit_files.size(); i++) {
-        dit.push_back(copy_file(dit_files[i]));
-        ditm.push_back(copy_file(dit_files[i]+"m"));
-        id.push_back(new ArrayInputStream(dit[i].first, dit[i].second));
-        im.push_back(new ArrayInputStream(ditm[i].first, ditm[i].second));
-        zd.push_back(new GzipInputStream(id[i]));
-        zm.push_back(new GzipInputStream(im[i]));
-        CodedInputStream* dd = new CodedInputStream(zd[i]);
-        CodedInputStream* dm = new CodedInputStream(zm[i]);
-        coded.push_back(make_pair(dm, dd));
+        std::pair<void*,size_t> dit = copy_file(dit_files[i]);
+        std::pair<void*,size_t> ditm = copy_file(dit_files[i]+"m");
+        ArrayInputStream *id = new ArrayInputStream(dit.first, dit.second);
+        ArrayInputStream *im = new ArrayInputStream(ditm.first, ditm.second);
+        GzipInputStream *zd = new GzipInputStream(id);
+        GzipInputStream *zm = new GzipInputStream(im);
+        CodedInputStream *cd = new CodedInputStream(zd);
+        CodedInputStream *cm = new CodedInputStream(zm);
+        assert(cd);
+        assert(cm);
+        coded.push_back(make_pair(cm, cd));
     }
 #else // .. but this one is better on the netbook (but takes more memory)
     std::cerr << "Loading and decompressing column data..." << std::endl;
