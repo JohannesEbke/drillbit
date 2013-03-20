@@ -388,6 +388,7 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
 
 #if HAVE_PCRE
         bool process = (regexps.empty() and fnmatch_patterns.empty()) ? true : false;
+        if (process) ensure_dictionaries(tree);
         // Check regexps
         for (int j = 0; j < regexps.size(); j++) {
             int results[3] = {-1,-1,-1};
@@ -400,6 +401,7 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
         }
 #else
         bool process = fnmatch_patterns.empty() ? true : false;
+        if (process) ensure_dictionaries(tree);
 #endif
         // check fnmatch patterns
         for (int j = 0; j < fnmatch_patterns.size(); j++) {

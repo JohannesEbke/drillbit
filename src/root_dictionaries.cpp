@@ -4,6 +4,8 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <sstream>
+#include <set>
 
 #include <TTree.h>
 #include <TLeaf.h>
@@ -15,7 +17,7 @@
 // 'vector<vector<double> >', 'vector<vector<float> >', 'vector<vector<int> >', 'vector<vector<string> >', 
 // 'vector<vector<vector<float> > >', 'vector<vector<vector<int> > >'
 
-static char dictionary_tmpdir[] = "root2stripes-dicts-XXXXXX";
+static char dictionary_tmpdir[] = "drillbit-root-dicts-XXXXXX";
 static bool initialized = false;
 
 int deletefile(const char *fpath, const struct stat *sb, int typeflag,
@@ -46,20 +48,41 @@ void init() {
     }
 }
 
-// Generate dictionaries required to read `tree`.
-void ensure_dictionary(const char *class_name) {
-    TClass* claim = TClass::GetClass(class_name);
+bool is_generated(const char * name) {
+    TClass* claim = TClass::GetClass(name);
     if (claim && claim->GetCollectionProxy() &&
         dynamic_cast<TEmulatedCollectionProxy*>(claim->GetCollectionProxy())) {
-        // Only executed if the dictionary isn't currently present
-        init();
-        char *orig_dir = get_current_dir_name();
-        chdir(dictionary_tmpdir);
-        std::cerr << "Generating dictionary for " << class_name << std::endl;
-        gInterpreter->GenerateDictionary(class_name);
-        chdir(orig_dir);
-        free(static_cast<void*>(orig_dir));
+        // Emulated == not Generated
+        return false;
     }
+    return true;
+}
+// Generate dictionaries required to read `tree`.
+void generate_dictionary(const char *class_name) {
+    init();
+    char *orig_dir = get_current_dir_name();
+    chdir(dictionary_tmpdir);
+    std::cerr << "Generating dictionary for " << class_name << std::endl;
+    gInterpreter->GenerateDictionary(class_name);
+    chdir(orig_dir);
+    free(static_cast<void*>(orig_dir));
+}
+
+// Generate dictionaries required to read `tree`.
+void ensure_dictionaries(std::set<std::string> &class_names) {
+    std::stringstream to_generate;
+    for (auto i = class_names.begin(); i != class_names.end(); i++) {
+        if (not is_generated(i->c_str())) {
+            if (to_generate.tellp() != 0) to_generate << ";";
+            to_generate << *i;
+        }
+    }
+    if (to_generate.tellp() > 0) generate_dictionary(to_generate.str().c_str());
+}
+
+// Generate dictionaries required to read `tree`.
+void ensure_dictionary(const char *class_name) {
+    if (not is_generated(class_name)) generate_dictionary(class_name);
 }
 
 // Generate dictionaries required to read `leaf`.
@@ -69,9 +92,11 @@ void ensure_dictionary(TLeaf *leaf) {
 
 // Generate dictionaries required to read `tree`.
 void ensure_dictionaries(TTree *tree) {
+    std::set<std::string> names;
     for (int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
-        ensure_dictionary(l->GetTypeName());
+        names.insert(l->GetTypeName());
     }
+    ensure_dictionaries(names);
 }
 
