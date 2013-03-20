@@ -5,7 +5,7 @@
 
 #include <iostream>
 #include <sstream>
-#include <set>
+#include <unordered_set>
 
 #include <TTree.h>
 #include <TLeaf.h>
@@ -69,7 +69,7 @@ void generate_dictionary(const char *class_name) {
 }
 
 // Generate dictionaries required to read `tree`.
-void ensure_dictionaries(std::set<std::string> &class_names) {
+void ensure_dictionaries(std::unordered_set<std::string> &class_names) {
     std::stringstream to_generate;
     for (auto i = class_names.begin(); i != class_names.end(); i++) {
         if (not is_generated(i->c_str())) {
@@ -92,7 +92,7 @@ void ensure_dictionary(TLeaf *leaf) {
 
 // Generate dictionaries required to read `tree`.
 void ensure_dictionaries(TTree *tree) {
-    std::set<std::string> names;
+    std::unordered_set<std::string> names;
     for (int li = 0; li < tree->GetListOfLeaves()->GetEntries(); li++) {
         TLeaf *l = (TLeaf*) tree->GetListOfLeaves()->At(li);
         names.insert(l->GetTypeName());
