@@ -107,7 +107,7 @@ void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutp
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
 void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
-    cout << "Dump " << leaf.GetName() << endl;
+    if (verbose) cerr << "Dump " << leaf.GetName() << endl;
     auto *branch = leaf.GetBranch();
 
     T data;
@@ -130,7 +130,7 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
     auto *branch = leaf.GetBranch();
 
     const auto length = leaf.GetLen();
-    cout << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << endl;
+    if (verbose) cerr << "Dump array: " << leaf.GetName() << " " << leaf.GetTypeName() << "[" << length << "]" << endl;
     
     T *data = new T[length];
     branch->SetAddress(data); // Note: this should not be &data.
@@ -155,7 +155,7 @@ template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
 void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
-    cout << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
+    if (verbose) cerr << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto *branch = leaf.GetBranch();
 
     vector<T> *data = NULL;
@@ -183,7 +183,7 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
-    cout << "Dump vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
+    if (verbose) cerr << "Dump vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto * branch = leaf.GetBranch();
 
     vector<vector<T> > *data = NULL;
@@ -219,7 +219,7 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
-    cout << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
+    if (verbose) cerr << "Dump vector vector vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
     auto *branch = leaf.GetBranch();
 
     vector<vector<vector<T> > > *data = NULL;
@@ -392,7 +392,7 @@ void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_pat
         for (int j = 0; j < regexps.size(); j++) {
             int results[3] = {-1,-1,-1};
             int matched = pcre_exec(regexps[j], NULL, name.c_str(), name.size(), 0, PCRE_ANCHORED, results, 3);
-            cout << "Matching " << name << " to " << regexp_patterns[j] << " = " << matched << " / " << results[1] << endl;
+            if (verbose) cerr << "Matching " << name << " to " << regexp_patterns[j] << " = " << matched << " / " << results[1] << endl;
             // look for full matches
             if (matched == 1 and results[1] == name.size()) { // results[1] contains the last byte of the match.
                 process = true;
@@ -440,17 +440,16 @@ void dump_file(const char *filename, const char *treename, const char *outdir,
     TTree *tree = NULL;
     
     if (treename == NULL) {
-        if (verbose)
-            cout << "Tree not specified, finding largest tree" << endl;
+        cerr << "Tree not specified, finding largest tree" << endl;
         tree = get_largest_tree(file);
         if (tree == NULL) {
-            cout << "No Trees found inside " << filename << endl;
+            cerr << "No Trees found inside " << filename << endl;
             exit(-1);
         }
     } else {
         file.GetObject(treename, tree);
         if (tree == NULL) {
-            cout << "Tree (" << treename << ") not found in file (" << filename << ")." << endl;
+            cerr << "Tree (" << treename << ") not found in file (" << filename << ")." << endl;
             exit(-1);
         }
     }
@@ -507,13 +506,13 @@ int main(int argc, char * const *argv) {
             if (long_options[option_index].flag != 0)
                 break;
             // Don't know when this code path is taken
-            cout << "option " << long_options[option_index].name;
+            cerr << "option " << long_options[option_index].name;
             if (optarg)
-                cout << " with arg %s";
-            cout << endl;
+                cerr << " with arg %s";
+            cerr << endl;
             break;
 
-        case 'h': usage(argv); break;
+        case 'h': usage(argv); exit(0); break;
         case 't': treename = optarg; break;
         case 'D': outdir = optarg; break;
         case 'm': fnmatch_patterns.push_back(optarg); break;
