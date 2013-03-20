@@ -29,7 +29,6 @@ class StripeReader {
     StripeInfo _info;
     CodedInputStream *_meta, *_data;
     int _field_type;
-    uint8_t _rl_multiplier, _max_dl;
 };
 
 #endif
