@@ -116,6 +116,7 @@ bool DatastripeInputStream::Next(decoded_data ** data, int* size) {
                     assert(_sub_stream->ReadString(&_buffer[*size]._string, ssize));
                 } else break;
             }
+            break;
         default:
             assert(false);
             break;
