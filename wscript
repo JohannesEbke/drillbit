@@ -15,8 +15,10 @@ def make_programs(bld, d, **kwargs):
     for app in listdir(d):
         if any(app.endswith(ext) for ext in src_extensions):
             bld.program(source=pjoin(d, app), target=app.split(".")[0], **kwargs)
-        elif isdir(app):
-            bld.program(source=getsrc(pjoin(d, app)), target=app, **kwargs)
+        elif isdir(pjoin(d, app)):
+            kwargs = dict(kwargs)
+            kwargs["includes"] = " ".join((kwargs.get("includes", ""), pjoin(d,app)))
+            bld.program(source=getsrc(bld, pjoin(d, app)), target=app, **kwargs)
 
 
 def options(opt):

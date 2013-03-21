@@ -2,7 +2,6 @@
 #include <vector>
 
 #include "open_stripes.h"
-#include "root_dictionaries.h"
 #include "stdvector_reader.h"
 
 using namespace std;
