@@ -1,0 +1,23 @@
+Streaming
+---------
+
+Drillbit segments the streaming to and from stripes into two problems:
+A) Connecting meta/data bytes from whereever they are to two Coded{I|O}Streams
+B) Efficiently dissecting or assembling data from CodedInputStreams
+
+Problem A is currently solved by copying all relevant files to memory and then
+hooking up a decompressor and coded stream onto it. If memory consumption
+becomes an issue, it should be an easy matter of writing a 
+ClosingFileInputStream that does not keep the relevant file open.
+
+Dissection and Assembly
+-----------------------
+
+Up to now, dissection and assembly proceeded directly to D3PD std::vectors,
+assuming that all fields are individual and not collated into messages.
+
+The next step is to disassemble and reassemble arbitrary protobuf messages.
+For disassembly, no additional information is required, but for reassembly,
+the structure of the message is required. For now, we assume that this
+structure is present somewhere in compiled form.
+

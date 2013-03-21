@@ -50,3 +50,9 @@ Drillbit plans to support the following workflows:
 * Run an A4 analysis on a drillbit file, A4 output
 * Run a native drillbit analysis, drillbit file output
 * Request a single column of metadata
+
+[I have a skimmed/thinned D3PD produced somehow and I want another column]
+
+The Databases
+-------------
+* Record which variables are requested
