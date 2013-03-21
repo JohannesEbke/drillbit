@@ -8,7 +8,7 @@
 using std::string;
 
 DatastripeInputStream::DatastripeInputStream(CodedInputStream* sub_stream, WireFormatLite::FieldType type):
-    _sub_stream(sub_stream), _type(type) {
+    _sub_stream(sub_stream), _type(type), _backedup(0), _fill(0) {
     // Construct in-place std::string structures
     if (_type == WireFormatLite::TYPE_STRING or _type == WireFormatLite::TYPE_BYTES) {
         for (int i = 0; i < _buffer_size; i++) {
@@ -35,7 +35,7 @@ bool DatastripeInputStream::Place(decoded_data * data, int size) {
     #define READ(cpptype, enumtype) \
     case WireFormatLite::TYPE_ ## enumtype: \
         for (int i = 0; i < size; i++) { \
-            if (not WireFormatLite::ReadPrimitive<cpptype, WireFormatLite::TYPE_ ## enumtype>(_sub_stream, data->_ ## cpptype)) {\
+            if (not WireFormatLite::ReadPrimitive<cpptype, WireFormatLite::TYPE_ ## enumtype>(_sub_stream, &data[i]._ ## cpptype)) {\
                 return false;\
             }\
         }\
@@ -55,14 +55,16 @@ bool DatastripeInputStream::Place(decoded_data * data, int size) {
         READ(float, FLOAT);
         READ(double, DOUBLE);
         READ(bool, BOOL);
+    #undef READ
         case WireFormatLite::TYPE_STRING:
         case WireFormatLite::TYPE_BYTES:
-            for (*size = 0; *size < _buffer_size; (*size)++) {
+            for (int i = 0; i < size; i++) {
                 uint32_t ssize;
                 if(_sub_stream->ReadVarint32(&ssize)) {
-                    assert(_sub_stream->ReadString(&_buffer[*size]._string, ssize));
+                    assert(_sub_stream->ReadString(&data[i]._string, ssize));
                 } else break;
             }
+            break;
         default:
             assert(false);
             break;
@@ -73,6 +75,12 @@ bool DatastripeInputStream::Place(decoded_data * data, int size) {
 bool DatastripeInputStream::Next(decoded_data ** data, int* size) {
     // we always provide the full buffer to the user, therefore
     // we have to refill the buffer from scratch at this point
+    if (_backedup != 0) {
+        *size = _backedup;
+        *data = _buffer + _fill - _backedup;
+        _backedup = 0;
+        return true;
+    }
 
     *size = 0;
     *data = _buffer;
@@ -99,6 +107,7 @@ bool DatastripeInputStream::Next(decoded_data ** data, int* size) {
         READ(float, FLOAT);
         READ(double, DOUBLE);
         READ(bool, BOOL);
+    #undef READ
         case WireFormatLite::TYPE_STRING:
         case WireFormatLite::TYPE_BYTES:
             for (*size = 0; *size < _buffer_size; (*size)++) {
@@ -111,7 +120,15 @@ bool DatastripeInputStream::Next(decoded_data ** data, int* size) {
             assert(false);
             break;
     }
+    _fill = *size;
     return (*size != 0);
+}
+
+bool DatastripeInputStream::BackUp(int count) {
+    assert(count >= 0);
+    if (_backedup + count > _fill) return false;
+    _backedup += count;
+    return true;
 }
 
 DatastripeOutputStream::DatastripeOutputStream(CodedOutputStream* sub_stream, WireFormatLite::FieldType type):
@@ -134,8 +151,9 @@ DatastripeOutputStream::~DatastripeOutputStream() {
   
 bool DatastripeOutputStream::Place(const decoded_data &data) {
     if (_committed == _buffer_size) Flush();
-    _buffer[_committed] = data;
+    _buffer[_committed]._int64_t = data._int64_t;
     _committed++;
+    return true;
 }
 
 bool DatastripeOutputStream::Place(decoded_data *data, int size) {
@@ -197,6 +215,7 @@ bool DatastripeOutputStream::Flush() {
         WRITE(float, FLOAT, Float);
         WRITE(double, DOUBLE, Double);
         WRITE(bool, BOOL, Bool);
+    #undef WRITE
         case WireFormatLite::TYPE_STRING:
         case WireFormatLite::TYPE_BYTES:
             for (int i = 0; i < _committed; i++) {

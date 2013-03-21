@@ -33,10 +33,13 @@ class DatastripeInputStream {
   bool Next(decoded_data ** data, int* size);
   // Place <size> decoded elements in data
   bool Place(decoded_data * data, int size);
+  bool BackUp(int count);
   
  private:
   static const size_t _buffer_size = 128; // 1k buffer
   decoded_data _buffer[_buffer_size];
+  int _backedup;
+  int _fill;
 
   CodedInputStream *_sub_stream;
   WireFormatLite::FieldType _type; 
@@ -51,7 +54,7 @@ class DatastripeOutputStream {
   virtual ~DatastripeOutputStream();
   
   // implements some kind of ZeroCopyOutputStream
-  bool Place(decoded_data data);
+  bool Place(const decoded_data &data);
   bool Place(decoded_data *data, int size);
   bool Next(decoded_data **data, int* size);
   bool BackUp(int count);

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "drillbit.pb.h"
+#include "datastripe_stream.h"
 
 namespace google { namespace protobuf { namespace io { class CodedInputStream; }; }; };
 using google::protobuf::io::CodedInputStream;
@@ -25,9 +26,10 @@ class StripeReader {
     // corresponding data is written to buffer, which is otherwise untouched.
     template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl, T *buffer);
  private:
-    StripeReader() : _info(), _meta(NULL), _data(NULL) {};
+    StripeReader() : _info(), _meta(NULL), _data(NULL), _dstream(NULL) {};
     StripeInfo _info;
     CodedInputStream *_meta, *_data;
+    DatastripeInputStream *_dstream;
     int _field_type;
 };
 

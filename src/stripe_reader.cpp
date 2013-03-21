@@ -13,5 +13,6 @@ StripeReader * StripeReader::Make(CodedInputStream *meta, CodedInputStream *data
     meta->PopLimit(limit);
     assert(stripe->_info.stripe_version() == 1);
     stripe->_field_type = stripe->_info.field_type();
+    stripe->_dstream = new DatastripeInputStream(data, WireFormatLite::FieldType(stripe->_info.field_type()));
     return stripe;
 }
