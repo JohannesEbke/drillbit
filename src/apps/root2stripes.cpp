@@ -5,6 +5,7 @@
 #include <TLeaf.h>
 #include <TEmulatedCollectionProxy.h>
 #include <TInterpreter.h>
+#include <TClassEdit.h>
 
 #include <iostream>
 
