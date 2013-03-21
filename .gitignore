@@ -3,6 +3,7 @@
 *.pyc
 .lock*
 .waf*
+.lua
 build
 data
 proof_of_concept/dit

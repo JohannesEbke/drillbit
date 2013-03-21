@@ -1,10 +1,10 @@
 #! /usr/bin/env python
 
-packages = "compiler_c compiler_cxx waf_unit_test gccdeps print_commands why local_rpath"
+packages = "compiler_c compiler_cxx waf_unit_test gccdeps why local_rpath"
 
 from os import listdir
 from os.path import basename, isdir, join as pjoin
-src_extensions = ("c", "C", "cc", "cpp", "CPP", "c++", "cp", "cxx", "proto")
+src_extensions = ("c", "C", "cc", "cpp", "CPP", "c++", "cp", "cxx", "proto", "dasc")
 def getsrc(ctx, d):
     r = []
     for h in src_extensions:
@@ -26,7 +26,7 @@ def options(opt):
 
 def configure(conf):
     conf.load(packages)
-    conf.load("protoc", tooldir="waf-tools")
+    conf.load("lua protoc dynasm", tooldir="waf-tools")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
     #conf.env.append_value("RPATH", [conf.env.LIBDIR])
@@ -36,12 +36,12 @@ def configure(conf):
     conf.check_cxx(lib="pcre", uselib_store="pcre", define_name="PCRE", mandatory=False)
 
 def build(bld):
-    bld.load(packages)
-    bld.load("protoc", tooldir="waf-tools")
+    bld.load(packages + " print_commands")
+    bld.load("lua protoc dynasm", tooldir="waf-tools")
 
     bld.shlib(source=getsrc(bld, "src/lib/drillbit"), 
             target="drillbit", 
-            use="protobuf", 
+            use="protobuf",
             includes="src/lib/drillbit")
 
     bld.shlib(source=getsrc(bld, "src/lib/drillbit_root"),
