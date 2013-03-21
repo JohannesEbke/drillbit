@@ -322,34 +322,49 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
             level = level + 1;
             tn = remove_vector(tn);
         }
+        
+        // Resolve ROOT's "Int_t", etc into plain C++ types
+        tn = TClassEdit::ResolveTypedef(tn.c_str(), true);
 
         // The integer types could also be coded as INT32 or FIXED32 or SFIXED32
-        if (tn == "double") {
-            dump_required<WireFormatLite::TYPE_DOUBLE, double>(level, leaf, o, o2);
-        } else if (tn == "float") {
+        
+        // Float types
+        if (tn == "float") {
             dump_required<WireFormatLite::TYPE_FLOAT, float>(level, leaf, o, o2);
-        } else if (tn == "int") {
-            dump_required<WireFormatLite::TYPE_SINT32, int>(level, leaf, o, o2);
-        } else if (tn == "short" || tn == "Short_t") {
-            dump_required<WireFormatLite::TYPE_SINT32, short>(level, leaf, o, o2);
-        } else if (tn == "unsigned int") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned int>(level, leaf, o, o2);
-        } else if (tn == "unsigned short") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned short>(level, leaf, o, o2);
-        } else if (tn == "Float_t") {
-            dump_required<WireFormatLite::TYPE_FLOAT, Float_t>(level, leaf, o, o2);
-        } else if (tn == "Bool_t") {
-            dump_required<WireFormatLite::TYPE_BOOL, Bool_t>(level, leaf, o, o2);
-        } else if (tn == "Char_t") {
-            dump_required<WireFormatLite::TYPE_UINT32, Char_t>(level, leaf, o, o2);
-        } else if (tn == "Double_t") {
-            dump_required<WireFormatLite::TYPE_DOUBLE, Double_t>(level, leaf, o, o2);
-        } else if (tn == "Int_t") {
-            dump_required<WireFormatLite::TYPE_SINT32, Int_t>(level, leaf, o, o2);
-        } else if (tn == "UInt_t") {
-            dump_required<WireFormatLite::TYPE_UINT32, UInt_t>(level, leaf, o, o2);
+        } else if (tn == "double") {
+            dump_required<WireFormatLite::TYPE_DOUBLE, double>(level, leaf, o, o2);
+            
+        // Misc types
+        } else if (tn == "bool") {
+            dump_required<WireFormatLite::TYPE_BOOL, bool>(level, leaf, o, o2);
         } else if (tn == "string") {
             dump_required<WireFormatLite::TYPE_STRING, string>(level, leaf, o, o2);
+        
+        // Int types
+        } else if (tn == "char") {
+            dump_required<WireFormatLite::TYPE_SINT32, char>(level, leaf, o, o2);
+        } else if (tn == "short") {
+            dump_required<WireFormatLite::TYPE_SINT32, short>(level, leaf, o, o2);
+        } else if (tn == "int") {
+            dump_required<WireFormatLite::TYPE_SINT32, int>(level, leaf, o, o2);
+        } else if (tn == "long") {
+            dump_required<WireFormatLite::TYPE_SINT32, long>(level, leaf, o, o2);
+        } else if (tn == "long long") {
+            dump_required<WireFormatLite::TYPE_SINT64, long long>(level, leaf, o, o2);
+        
+        // Unsigned Int types
+        } else if (tn == "unsigned char") {
+            dump_required<WireFormatLite::TYPE_UINT32, unsigned char>(level, leaf, o, o2);
+        } else if (tn == "unsigned short") {
+            dump_required<WireFormatLite::TYPE_UINT32, unsigned short>(level, leaf, o, o2);
+        } else if (tn == "unsigned int") {
+            dump_required<WireFormatLite::TYPE_UINT32, unsigned int>(level, leaf, o, o2);
+        } else if (tn == "unsigned long") {
+            dump_required<WireFormatLite::TYPE_UINT32, unsigned long>(level, leaf, o, o2);
+        } else if (tn == "unsigned long long") {
+            dump_required<WireFormatLite::TYPE_UINT64, unsigned long long>(level, leaf, o, o2);
+            
+        // Doom.
         } else {
             cerr << "Unknown branch type: " << tn << endl;
             assert(false);
