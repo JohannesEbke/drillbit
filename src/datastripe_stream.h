@@ -31,9 +31,11 @@ class DatastripeInputStream {
   
   // implement similar interface than a ZeroCopyInputStream
   bool Next(decoded_data ** data, int* size);
+  // Place <size> decoded elements in data
+  bool Place(decoded_data * data, int size);
   
  private:
-  static const size_t _buffer_size = 1024;
+  static const size_t _buffer_size = 128; // 1k buffer
   decoded_data _buffer[_buffer_size];
 
   CodedInputStream *_sub_stream;
@@ -49,13 +51,15 @@ class DatastripeOutputStream {
   virtual ~DatastripeOutputStream();
   
   // implements some kind of ZeroCopyOutputStream
-  bool Next(decoded_data** data, int* size);
+  bool Place(decoded_data data);
+  bool Place(decoded_data *data, int size);
+  bool Next(decoded_data **data, int* size);
   bool BackUp(int count);
   bool Flush();
   bool Close();
 
  private:
-  static const size_t _buffer_size = 1024;
+  static const size_t _buffer_size = 128; // 1k buffer
   decoded_data _buffer[_buffer_size];
   int _committed;
   

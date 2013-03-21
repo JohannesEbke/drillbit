@@ -30,6 +30,45 @@ DatastripeInputStream::~DatastripeInputStream() {
         }
     }
 }
+
+bool DatastripeInputStream::Place(decoded_data * data, int size) {
+    #define READ(cpptype, enumtype) \
+    case WireFormatLite::TYPE_ ## enumtype: \
+        for (int i = 0; i < size; i++) { \
+            if (not WireFormatLite::ReadPrimitive<cpptype, WireFormatLite::TYPE_ ## enumtype>(_sub_stream, data->_ ## cpptype)) {\
+                return false;\
+            }\
+        }\
+        break;
+    switch(_type) {
+        READ(int32_t, INT32);
+        READ(int32_t, SFIXED32);
+        READ(int32_t, SINT32);
+        READ(int, ENUM);
+        READ(uint32_t, UINT32);
+        READ(uint32_t, FIXED32);
+        READ(int64_t, INT64);
+        READ(int64_t, SFIXED64);
+        READ(int64_t, SINT64);
+        READ(uint64_t, UINT64);
+        READ(uint64_t, FIXED64);
+        READ(float, FLOAT);
+        READ(double, DOUBLE);
+        READ(bool, BOOL);
+        case WireFormatLite::TYPE_STRING:
+        case WireFormatLite::TYPE_BYTES:
+            for (*size = 0; *size < _buffer_size; (*size)++) {
+                uint32_t ssize;
+                if(_sub_stream->ReadVarint32(&ssize)) {
+                    assert(_sub_stream->ReadString(&_buffer[*size]._string, ssize));
+                } else break;
+            }
+        default:
+            assert(false);
+            break;
+    }
+    return true;
+}
   
 bool DatastripeInputStream::Next(decoded_data ** data, int* size) {
     // we always provide the full buffer to the user, therefore
@@ -93,6 +132,28 @@ DatastripeOutputStream::~DatastripeOutputStream() {
     }
 }
   
+bool DatastripeOutputStream::Place(const decoded_data &data) {
+    if (_committed == _buffer_size) Flush();
+    _buffer[_committed] = data;
+    _committed++;
+}
+
+bool DatastripeOutputStream::Place(decoded_data *data, int size) {
+    while (size > 0) {
+        int free_space = _buffer_size - _committed;
+        if (size <= free_space) {
+            memcpy(_buffer + _committed, data, size);
+            _committed += size;
+            return true;
+        } else {
+            memcpy(_buffer + _committed, data, free_space);
+            size -= free_space;
+            data += free_space;
+            Flush();
+        }
+    }
+    return true;
+}
 bool DatastripeOutputStream::Next(decoded_data** data, int* size) {
     if (_committed < _buffer_size) {
         *size = _buffer_size - _committed;
