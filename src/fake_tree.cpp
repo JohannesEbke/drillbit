@@ -7,10 +7,15 @@
 #include "drillbit/tree.h"
 
 #include <TTree.h>
+#include <TDataType.h>
 
 using namespace std;
 
 using google::protobuf::io::CodedInputStream;
+
+DrillbitTree::DrillbitTree() : TTree() {
+            
+}
 
 DrillbitTree * DrillbitTree::FromArgs(int count, const char ** files) {
     vector<string> r;
@@ -18,7 +23,7 @@ DrillbitTree * DrillbitTree::FromArgs(int count, const char ** files) {
     return Make(r);
 }
 
-DrillbitTree * DrillbitTree::Make(std::vector<std::string> files) {
+DrillbitTree * DrillbitTree::Make(const std::vector<std::string> &files) {
     DrillbitTree * t = new DrillbitTree();
     std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded = open_stripes(files);
     for (int i = 0; i < files.size(); i++) {
@@ -29,11 +34,15 @@ DrillbitTree * DrillbitTree::Make(std::vector<std::string> files) {
     }
     t->fEntries = 10000;
     t->fReadEntry = 0;
+    return t;
 }
 
-Int_t DrillbitTree::SetBranchAddress(const char * name, void **add, TBranch **ptr) {
-    *add = (void*) _readers_map[name]->buffer();
-    *ptr = NULL;
+Int_t DrillbitTree::SetBranchAddress(const char *bname,void *add, TBranch **ptr, TClass *realClass, EDataType datatype, Bool_t isptr) {
+    if (isptr) {
+        *(void**)add = (void*) _readers_map[bname]->buffer();
+    } else {
+        _tocopy.push_back(make_pair(_readers_map[bname]->buffer(), make_pair(add, TDataType::GetDataType(datatype)->Size())));
+    }
 }
 
 Int_t DrillbitTree::GetEntry(Long64_t entry, Int_t getall) {
@@ -42,5 +51,8 @@ Int_t DrillbitTree::GetEntry(Long64_t entry, Int_t getall) {
     fReadEntry++;
     for (auto r = _readers.begin(); r != _readers.end(); r++) {
         assert((*r)->next());
+    }
+    for (auto r = _tocopy.begin(); r != _tocopy.end(); r++) {
+        memcpy(r->second.first, r->first, r->second.second);
     }
 }
