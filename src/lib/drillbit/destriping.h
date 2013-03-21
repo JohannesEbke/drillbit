@@ -8,11 +8,6 @@
 using google::protobuf::Message;
 using google::protobuf::FieldDescriptor;
 
-#include <a4/dynamic_message.h>
-using a4::io::FieldContent;
-
-
-
 
 struct ColumnLine {
     ColumnLine(unsigned int r, unsigned int d, std::string v) : repetition_level(r), definition_level(d), value(v) {};
@@ -165,7 +160,7 @@ class ColumnReader {
             }
         }
         std::cout << "FSM Transitions:" << std::endl;
-        foreach(auto kv, fsm_transitions) {
+        for(auto kv : fsm_transitions) {
             if (kv.first.first->_fd == NULL) {
                 std::cout << kv.first.first;
             } else {

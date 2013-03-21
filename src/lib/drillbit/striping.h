@@ -8,9 +8,6 @@
 using google::protobuf::Message;
 using google::protobuf::FieldDescriptor;
 
-#include <a4/dynamic_message.h>
-using a4::io::FieldContent;
-
 class ColumnWriter {
 public:
     ColumnWriter()
@@ -80,18 +77,18 @@ public:
     void WriteRepeated(const Message& msg, int i, int rl) {
         sync_to_parent();
         _data << "  r: " << rl << " d: " << _definition_level
-              << " c: " << FieldContent(msg, _fd, i).str() << std::endl;
+              << " c: " << i << "th value of " << _fd->name() << " of " << msg.DebugString() << std::endl;
     }
 
     void Write(const Message& msg, int rl) {
         sync_to_parent();
         _data << "  r: " << rl << " d: " << _definition_level
-              << " c: " << FieldContent(msg, _fd).str() << std::endl;
+              << " c: " << _fd->name() << " of " << msg.DebugString() << std::endl;
     }
 
     void Finalize() {
         sync_to_parent(true);
-        foreach (auto& w, _writers) {
+        for(auto& w : _writers) {
             w.second->Finalize();
         }
     }
@@ -104,7 +101,7 @@ public:
                 std::cout << "<< Message root >>" << std::endl;
             std::cout << _data.str() << std::endl;
         }
-        foreach (auto& w, _writers) {
+        for(auto& w : _writers) {
             w.second->Dump();
         }
     }
@@ -120,7 +117,7 @@ void dissect_record(const Message & msg, ColumnWriter & writer,
 
     writer._version++;
 
-    foreach (const auto* fd, fields) {
+    for(const auto* fd : fields) {
         ColumnWriter& child_writer = writer.get(fd);
 
         unsigned int child_repetition_level = repetition_level;

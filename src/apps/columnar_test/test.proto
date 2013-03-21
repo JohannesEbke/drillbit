@@ -1,0 +1,18 @@
+message TestLinks {
+    repeated int64 Backward = 1;
+    repeated int64 Forward = 2;
+}
+message TestLanguage {
+    required string Code = 1;
+    optional string Country = 2; 
+}
+message TestName {
+    repeated TestLanguage Language = 1;
+    optional string Url = 2;
+}
+message TestDocument {
+    required int64 DocId = 1;
+    optional TestLinks Links = 2;
+    repeated TestName Name = 3;
+}
+
