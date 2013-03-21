@@ -1,16 +1,12 @@
 from waflib.Configure import conf
+from waflib.Build import build
 
-from os import listdir, system
+from os import basename, listdir, system
 from os.path import basename, isdir, join as pjoin
 
 ext_headers = ["h", "hpp"]
 ext_cpp = ["C", "cc", "cpp", "CPP", "c++", "cp", "cxx", "proto"]
 ext_c = ["c"]
-
-headers = {
-        "root" : [l.strip() for l in file("waf-tools/headers_root.txt").readlines()],
-        "protobuf" : [l.strip() for l in file("waf-tools/headers_protobuf.txt").readlines()]
-}
 
 def glob_single(ctx, f, headers):
     r = []
@@ -21,7 +17,7 @@ def glob_single(ctx, f, headers):
 def glob_for(ctx, d, headers):
     r = []
     for h in headers:
-        r.extend(ctx.path.ant_glob(pjoin(d, "*."+h)))
+        r.extend(ctx.path.ant_glob(pjoin(d, "**."+h)))
     return r
 
 def get_program_files(ctx, d):
@@ -48,73 +44,16 @@ def get_app_files(ctx, p):
             apps[f] = get_program_files(pjoin(p, f))
     return apps
 
-def get_includes(nod):
-    includes = [l for l in nod.read().split("\n") if l.replace(" ","").startswith("#include<")]
-    return [i.split("<")[1].split(">")[0].strip() for i in includes]
-
-def include_to_lib(f):
-    for k, hs in headers.iteritems():
-        if f in hs:
-            return k
-    return None
-
-def get_deplibs(*args):
-    files = reduce(list.__add__, args, [])
-    includes = reduce(list.__add__, (get_includes(f) for f in files), [])
-    libs = set(x for x in map(include_to_lib, includes) if not x is None)
-    return libs
-
-@conf
-def magic_project(conf, name=None):
-    conf.load('compiler_c compiler_cxx')
-    if name is None:
-        name = basename(conf.path.abspath())
-    print "MAGIC PROJECT ", name
-    conf.env.MAGIC_PROJECT_NAME = name
-    conf.env.MAGIC_SRC_PATH = s = "src"
-    conf.env.MAGIC_APP_PATH = a = pjoin(s, "apps")
-    conf.env.MAGIC_INC_PATH = i = pjoin(s, name)
-    conf.env.MAGIC_TST_PATH = t = pjoin(s, "tests")
-
-    # make the directories so the user knows he can use them
-    system("mkdir -p %s %s %s %s" % (s, a, i, t))
-
-    c, cpp, h, ph = get_library_files(conf)
-    apps = get_app_files(conf, a)
-    tests = get_app_files(conf, t)
-
-    ext_libs = get_deplibs(ph)
-    libs = get_deplibs(c,cpp,h,ph)
-
-    base_libs = ext_libs.union(libs)
-    conf.env.MAGIC_BASE_LIBS = base_libs
-
-    # add self-linking
-    conf.parse_flags("-l%s"%name, name, conf.env)
-
-    build_apps = {}
-    build_tests = {}
-    for app, fls in apps.iteritems():
-        build_apps[app] = get_deplibs(*fls).union((name,))
-    for app, fls in tests.iteritems():
-        build_tests[app] = get_deplibs(*fls).union((name,))
-    conf.env.MAGIC_APPS = build_apps
-    conf.env.MAGIC_TESTS = build_tests
-    conf.env.HAVE_LIBRARY = {}
-
 @conf
 def magic_check_library(conf, package, mandatory=True, **kwargs):
     # special casing for ROOT
     if package == "root":
-        res = conf.check_cfg(path="root-config", package="", 
-            uselib_store=package, args='--libs --cflags', mandatory=mandatory,
-            **kwargs)
+        return conf.check_cfg(path="root-config", package="", 
+            uselib_store=package.upper(), args='--libs --cflags', 
+            mandatory=mandatory, **kwargs)
     else:
-        res = conf.check_cfg(package=package, uselib_store=package, 
-            args="--libs --cflags", mandatory=mandatory,
-            **kwargs)
-    conf.env.HAVE_LIBRARY[package] = res
-    return res
+        return conf.check_cfg(package=package, uselib_store=package.upper(),
+            args="--libs --cflags", mandatory=mandatory, **kwargs)
 
 @conf
 def magic_check_lib(conf, lib, mandatory=True, **kwargs):
@@ -123,45 +62,46 @@ def magic_check_lib(conf, lib, mandatory=True, **kwargs):
     res = conf.check(features='cxx cxxprogram', lib=lib,
         uselib_store=lib, mandatory=mandatory, **kwargs)
     conf.define("HAVE_"+lib.upper(), 1)
-    conf.env.HAVE_LIBRARY[lib] = res
     return res 
 
-def build(bld):
-    bld(features="cxx cxxshlib", 
-        source=glob_for(bld, "src", ext_cpp),
-        includes=bld.env.MAGIC_SRC_PATH,
-        target=bld.env.MAGIC_PROJECT_NAME,
-        use=sorted(bld.env.MAGIC_BASE_LIBS))
-    
-    for app, useset in bld.env.MAGIC_APPS.iteritems():
-        base = pjoin("src", "apps", app)
-        use = sorted(bld.env.MAGIC_BASE_LIBS.union(useset))
-        if isdir(base):
-            source = glob_for(bld, base, ext_cpp)
-        else:
-            source = glob_single(bld, base, ext_cpp)
-        if not source:
-            print "Application ", app, " has been removed since configuration."
-            continue
-        bld(features="cxx cxxprogram", source=source, includes=["src/", base+"/"],
-                target=app, use=use)
+@build
+def magic_library(bld, dname, static=False, public_inc=None, name=None, **kwargs):
+    if name is None:
+        name = basename(dname)
+    bld.parse_flags("-l%s -I%s" % (name, dname), name.upper(), conf.env)
+    kwargs.setdefault("sources", []).extend(glob_for(bld, dname, ext_cpp))
+    if static:
+        kwargs.setdefault("features", "cxx cxxstlib")
+    else:
+        kwargs.setdefault("features", "cxx cxxshlib")
+    kwargs.setdefault("includes", dname);
+    kwargs.setdefault("target", name);
+    bld(**kwargs)
 
-    for app, use in bld.env.MAGIC_TESTS.iteritems():
-        base = pjoin("src", "tests", app)
-        use = sorted(bld.env.MAGIC_BASE_LIBS.union(useset))
+    # install public header files
+    if public_inc:
+        pubheaders = bld.path.ant_glob(pjoin(dname, pubinc, "**.h"))
+    cwd = bld.path.find_or_declare(dname).get_src()
+    bld.install_files(pjoin('${PREFIX}',"include", pubinc), pubheaders,
+        cwd=cwd, relative_trick=True)
+
+@build
+def magic_executables(bld, dname, features, **kwargs):
+    for app, use in get_app_files(bld, dname).iteritems():
+        base = pjoin(dname, app)
         if isdir(base):
             source = glob_for(bld, base, ext_cpp)
         else:
             source = glob_single(bld, base, ext_cpp)
-        if not source:
-            print "Test ", app, " has been removed since configuration."
-            continue
-        bld(features="cxx cxxprogram test", source=source, includes=["src/", base+"/"],
-                target=app, use=use)
-    
-    pubheaders = bld.path.ant_glob(pjoin("src", bld.env.MAGIC_PROJECT_NAME, "**.h"))
-    
-    cwd = bld.path.find_or_declare(pjoin("src", bld.env.MAGIC_PROJECT_NAME)).get_src()
-    bld.install_files(pjoin('${PREFIX}',"include", bld.env.MAGIC_PROJECT_NAME), pubheaders, cwd=cwd,
-        relative_trick=True)
+        kw = dict(kwargs)
+        kw.setdefault("includes", []).append(base)
+        bld(features=features, source=source, target=app, **kw)
+
+@build
+def magic_apps(bld, dname, **kwargs):
+    return bld.magic_executables(bld, dname, "cxx cxxprogram")
+
+@build
+def magic_tests(bld, dname, **kwargs):
+    return bld.magic_executables(bld, dname, "cxx cxxprogram test")
 
