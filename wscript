@@ -24,11 +24,18 @@ def make_programs(bld, d, **kwargs):
             kwargs["includes"] = " ".join((kwargs.get("includes", ""), pjoin(d,app)))
             bld.program(source=getsrc(bld, pjoin(d, app)), target=app, **kwargs)
 
+def go(ctx):
+    from waflib.Options import commands, options
+    commands += ["configure", "build"]
 
 def options(opt):
     opt.load(packages)
 
 def configure(conf):
+    import os
+    if not os.path.exists("src/lib/zerocc/test.cc"):
+        if os.system("git submodule update --init") != 0:
+            conf.fatal("Could not initialize necessary submodules!")
     conf.load(packages)
     conf.load("lua protoc dynasm", tooldir="waf-tools")
     conf.get_cc_version(conf.env.CXX)
@@ -46,15 +53,20 @@ def build(bld):
     bld.load(packages + " print_commands")
     bld.load("lua protoc dynasm", tooldir="waf-tools")
 
+    bld.stlib(source=getsrc(bld, "src/lib/zerocc"),
+            target="zerocc",
+            use="protobuf", 
+            includes="src/lib/zerocc")
+
     bld.shlib(source=getsrc(bld, "src/lib/drillbit"), 
             target="drillbit", 
-            use="protobuf",
-            includes="src/lib/drillbit")
+            use="protobuf zerocc",
+            includes="src/lib/drillbit src/lib")
 
     bld.shlib(source=getsrc(bld, "src/lib/drillbit_root"),
             target="drillbit_root",
-            use="protobuf root drillbit", 
-            includes="src/lib/drillbit src/lib/drillbit_root")
+            use="protobuf root drillbit zerocc", 
+            includes="src/lib/drillbit src/lib/drillbit_root src/lib")
     
     make_programs(bld, "src/apps", 
             use="protobuf drillbit",

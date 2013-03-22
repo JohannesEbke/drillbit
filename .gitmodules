@@ -1,0 +1,3 @@
+[submodule "src/lib/zerocc"]
+	path = src/lib/zerocc
+	url = https://github.com/JohannesEbke/protobuf-zerocopy-compression.git
