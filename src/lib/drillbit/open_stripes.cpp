@@ -30,6 +30,25 @@ pair<void*, size_t> copy_file(string fn) {
     assert(fstat(fd, &buffer) != -1);
     size_t size = buffer.st_size;
     if (size == 0) return make_pair((void*)NULL, 0);
+    void * target = malloc(size);
+    void * current = target;
+    size_t remaining_size = size;
+    while(remaining_size > 0) {
+        ssize_t advance = read(fd, current, remaining_size);
+        assert(advance > 0);
+        current += advance;
+        remaining_size -= advance;
+    }
+    close(fd);
+    return make_pair(target, size);
+};
+
+pair<void*, size_t> copy_file_read(string fn) {
+    int fd = open(fn.c_str(), O_RDONLY);
+    struct stat buffer;
+    assert(fstat(fd, &buffer) != -1);
+    size_t size = buffer.st_size;
+    if (size == 0) return make_pair((void*)NULL, 0);
     void * mmap = ::mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
     assert(mmap != MAP_FAILED);
     void * target = malloc(size);
