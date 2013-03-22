@@ -27,6 +27,9 @@ def options(opt):
 def configure(conf):
     conf.load(packages)
     conf.load("lua protoc dynasm", tooldir="waf-tools")
+    conf.get_cc_version(conf.env.CXX)
+    if conf.env.CC_VERSION < ("4","6"):
+        conf.fatal("We require at least gcc 4.6 at this time.")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
     #conf.env.append_value("RPATH", [conf.env.LIBDIR])
