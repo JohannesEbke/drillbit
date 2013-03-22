@@ -17,15 +17,26 @@ void just_read_stripes(const std::vector<std::string>& dit_files) {
         StdVectorReader * vreader = StdVectorReader::Make(sreader);
         readers.push_back(vreader);
     }
+#if 1
+    for (int i = 0; i < coded.size(); i++) {
+        CodedInputStream *meta = coded[i].first;
+        int ssize;
+        uint32_t size = 0;
+        assert(meta->ReadVarint32(&size));
+        auto limit = meta->PushLimit(size);
+        StripeInfo info;
+        assert(info.ParseFromCodedStream(meta));
+        meta->PopLimit(limit);
+        assert(info.stripe_version() == 1);
 
-    //for (int i = 0; i < coded.size(); i++) {
-        //const void * data;
-        //int size;
-        //while(coded[i].first->GetDirectBufferPointer(&data, &size)) coded[i].first->Skip(size);
-        //while(coded[i].second->GetDirectBufferPointer(&data, &size)) coded[i].second->Skip(size);
-    //}   
-    //return;
-
+        DatastripeInputStream dss(coded[i].second, WireFormatLite::FieldType(info.field_type()));
+        while(coded[i].first->ReadVarint32(&size));
+        decoded_data * data;
+        int dsize;
+        while(dss.Next(&data, &dsize));
+    }   
+    return;
+#endif
 
     std::cerr << "Run over all events..." << std::endl;
     int event_number = 0;
