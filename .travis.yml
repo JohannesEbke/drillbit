@@ -1,0 +1,28 @@
+language: cpp
+
+compiler:
+  - clang
+  - gcc
+
+env:
+  - ROOT=5.34.05 PYTHON=2.7
+
+before_install:
+  - sudo apt-get install libprotobuf-dev protobuf-compiler valgrind
+  - time wget --no-check-certificate https://dl.dropbox.com/u/4923986/rootpy/64/root_v${ROOT}_Python_${PYTHON}.tar.gz
+  - time tar zxf root_v${ROOT}_Python_${PYTHON}.tar.gz
+  - source root_v${ROOT}_Python_${PYTHON}/bin/thisroot.sh
+  - ./waf configure --prefix=install
+
+script:
+  - ./waf --alltests
+  - ./waf install --alltests
+
+notifications:
+  email:
+    recipients:
+      - p@pwaller.net
+      - johannes@ebke.org
+    on_success: change
+    on_failure: always
+
