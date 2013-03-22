@@ -2,16 +2,18 @@
 
 packages = "compiler_c compiler_cxx waf_unit_test gccdeps why local_rpath"
 
-from os import listdir
-from os.path import basename, isdir, join as pjoin
 src_extensions = ("c", "C", "cc", "cpp", "CPP", "c++", "cp", "cxx", "proto", "dasc")
+
 def getsrc(ctx, d):
+    from os.path import join as pjoin
     r = []
     for h in src_extensions:
         r.extend(ctx.path.ant_glob(pjoin(d, "**."+h)))
     return r
 
 def make_programs(bld, d, **kwargs):
+    from os import listdir
+    from os.path import basename, isdir, join as pjoin
     for app in listdir(d):
         if any(app.endswith(ext) for ext in src_extensions):
             bld.program(source=pjoin(d, app), target=app.split(".")[0], **kwargs)
