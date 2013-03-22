@@ -378,7 +378,7 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
 }
 
 void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {
-    if (lstat(outdir, NULL) == -1) {
+    if (access(outdir, F_OK) == -1) {
         mkdir(outdir, 0777);
     }
     
