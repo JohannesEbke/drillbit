@@ -18,6 +18,15 @@ void just_read_stripes(const std::vector<std::string>& dit_files) {
         readers.push_back(vreader);
     }
 
+    //for (int i = 0; i < coded.size(); i++) {
+        //const void * data;
+        //int size;
+        //while(coded[i].first->GetDirectBufferPointer(&data, &size)) coded[i].first->Skip(size);
+        //while(coded[i].second->GetDirectBufferPointer(&data, &size)) coded[i].second->Skip(size);
+    //}   
+    //return;
+
+
     std::cerr << "Run over all events..." << std::endl;
     int event_number = 0;
     bool running = true;
