@@ -13,7 +13,9 @@ def getsrc(ctx, d):
 
 def make_programs(bld, d, **kwargs):
     from os import listdir
-    from os.path import basename, isdir, join as pjoin
+    from os.path import exists, basename, isdir, join as pjoin
+    if not exists(d):
+        return
     for app in listdir(d):
         if any(app.endswith(ext) for ext in src_extensions):
             bld.program(source=pjoin(d, app), target=app.split(".")[0], **kwargs)
@@ -30,7 +32,7 @@ def configure(conf):
     conf.load(packages)
     conf.load("lua protoc dynasm", tooldir="waf-tools")
     conf.get_cc_version(conf.env.CXX)
-    if conf.env.CC_VERSION < ("4","6"):
+    if conf.env.CXX == "g++" and conf.env.CC_VERSION < ("4","6"):
         conf.fatal("We require at least gcc 4.6 at this time.")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
