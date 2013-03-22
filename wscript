@@ -43,6 +43,7 @@ def configure(conf):
         conf.fatal("We require at least gcc 4.6 at this time.")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
+    conf.env.CXXFLAGS_PIC = "-fPIC"
     #conf.env.append_value("RPATH", [conf.env.LIBDIR])
 
     conf.check_cfg(package="protobuf", uselib_store="protobuf", args="--libs --cflags", mandatory=True)
@@ -55,13 +56,13 @@ def build(bld):
 
     bld.stlib(source=getsrc(bld, "src/lib/zerocc"),
             target="zerocc",
-            use="protobuf", 
+            use="protobuf PIC", 
             includes="src/lib/zerocc")
 
     bld.shlib(source=getsrc(bld, "src/lib/drillbit"), 
             target="drillbit", 
             use="protobuf zerocc",
-            includes="src/lib/drillbit src/lib")
+            includes="src/lib/drillbit src/lib/zerocc")
 
     bld.shlib(source=getsrc(bld, "src/lib/drillbit_root"),
             target="drillbit_root",

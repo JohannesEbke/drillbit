@@ -11,12 +11,12 @@
 #include <iostream>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/io/gzip_stream.h>
 #include <google/protobuf/io/coded_stream.h>
+#include <gzip_stream.h>
 
 using google::protobuf::io::FileInputStream;
 using google::protobuf::io::ArrayInputStream;
-using google::protobuf::io::GzipInputStream;
+using zerocc::GzipInputStream;
 using google::protobuf::io::CodedInputStream;
 
 using std::pair;
