@@ -35,6 +35,7 @@ class DatastripeInputStream {
   bool Place(decoded_data * data, int size);
   bool BackUp(int count);
   
+  const WireFormatLite::FieldType type() const { return _type; };
  private:
   static const size_t _buffer_size = 128; // 1k buffer
   decoded_data _buffer[_buffer_size];
