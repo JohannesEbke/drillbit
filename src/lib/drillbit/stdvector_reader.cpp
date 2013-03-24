@@ -4,7 +4,13 @@
 
 template<int level>
 StdVectorReader* MakeStdVectorReaderAutoType(StripeReader *s) {
-#define TRY_TYPE(T) if (s->is_correct_type<T>()) return TypedStdVectorReader<T,level>::Make(s);
+    // Note: The first next() for a vector type is just for initialization
+    // No data will be read since the previous rl/dl is at 0/0.
+#define TRY_TYPE(T) if (s->is_correct_type<T>()) {\
+    auto r = TypedStdVectorReader<T,level>::Make(s);\
+    r->next();\
+    return r;\
+}
     TRY_TYPE(int32_t)
     TRY_TYPE(uint32_t)
     TRY_TYPE(float)
