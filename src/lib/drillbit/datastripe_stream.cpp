@@ -12,7 +12,7 @@ DatastripeInputStream::DatastripeInputStream(CodedInputStream* sub_stream, WireF
     // Construct in-place std::string structures
     if (_type == WireFormatLite::TYPE_STRING or _type == WireFormatLite::TYPE_BYTES) {
         for (int i = 0; i < _buffer_size; i++) {
-            new (&_buffer[i]._string) std::string();
+            new (&_buffer[i]._string) string;
         }
     }
     // Check for nonsensical types for stripes
@@ -61,8 +61,8 @@ bool DatastripeInputStream::Place(decoded_data * data, int size) {
             for (int i = 0; i < size; i++) {
                 uint32_t ssize;
                 if(_sub_stream->ReadVarint32(&ssize)) {
-                    assert(_sub_stream->ReadString(&data[i]._string, ssize));
-                } else break;
+                    assert(_sub_stream->ReadString(&(data[i]._string), ssize));
+                } else return false;
             }
             break;
         default:
@@ -137,7 +137,7 @@ DatastripeOutputStream::DatastripeOutputStream(CodedOutputStream* sub_stream, Wi
     // Construct in-place std::string structures
     if (_type == WireFormatLite::TYPE_STRING or _type == WireFormatLite::TYPE_BYTES) {
         for (int i = 0; i < _buffer_size; i++) {
-            new (&_buffer[i]._string) std::string();
+            new (&_buffer[i]._string) std::string;
         }
     }
 }
