@@ -87,10 +87,11 @@ template<typename U>
 void TypedStdVectorReader<T,level>::decode_into(std::vector<std::vector<U>> &v, int rl) {
     if (rl == 0 || rl == 1) {
         assert(v.empty() or rl == 1);
-        v.push_back(std::vector<U>());
-        rl = 1;
+        v.emplace_back();
+        decode_into(v.back(), 0);
+    } else {
+        decode_into(v.back(), rl - 1);
     }
-    decode_into(v.back(), rl - 1);
 }
 
 #endif
