@@ -38,10 +38,12 @@ DrillbitTree * DrillbitTree::Make(const std::vector<std::string> &files) {
 }
 
 Int_t DrillbitTree::SetBranchAddress(const char *bname,void *add, TBranch **ptr, TClass *realClass, EDataType datatype, Bool_t isptr) {
+    StdVectorReader * r = _readers_map[bname];
     if (isptr) {
-        *(void**)add = (void*) _readers_map[bname]->buffer();
+        if (r) *(void**)add = (void*) r->buffer();
+        else *(void**)add = NULL;
     } else {
-        _tocopy.push_back(make_pair(_readers_map[bname]->buffer(), make_pair(add, TDataType::GetDataType(datatype)->Size())));
+        if (r) _tocopy.push_back(make_pair(r->buffer(), make_pair(add, TDataType::GetDataType(datatype)->Size())));
     }
     return 0;
 }
