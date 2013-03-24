@@ -51,6 +51,8 @@ def configure(conf):
     conf.check_cxx(lib="pcre", uselib_store="pcre", define_name="PCRE", mandatory=False)
 
 def build(bld):
+    from os.path import join as pjoin
+
     bld.load(packages + " print_commands")
     bld.load("lua protoc dynasm", tooldir="waf-tools")
 
@@ -68,6 +70,13 @@ def build(bld):
             target="drillbit_root",
             use="protobuf root drillbit zerocc", 
             includes="src/lib/drillbit src/lib/drillbit_root src/lib")
+
+    for p in ("src/lib/drillbit", "src/lib/drillbit_root"):
+        cwd = bld.path.find_node(p)
+        bld.install_files('${PREFIX}/include',
+                cwd.ant_glob("drillbit/**.h"),
+                cwd=cwd,
+                relative_trick=True)
     
     make_programs(bld, "src/apps", 
             use="protobuf drillbit",
