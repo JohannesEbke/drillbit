@@ -39,13 +39,15 @@ StdVectorReader* MakePODReaderAutoType(StripeReader *s) {
     assert(false);
 }
 
-StdVectorReader* StdVectorReader::Make(StripeReader *s) {
+StdVectorReader* StdVectorReader::Make(StripeReader *s, CodedInputStream *d) {
+    StdVectorReader *r;
     switch(s->info().level()) {
-        case 0: return MakePODReaderAutoType(s);
-        case 1: return MakeStdVectorReaderAutoType<1>(s);
-        case 2: return MakeStdVectorReaderAutoType<2>(s);
-        case 3: return MakeStdVectorReaderAutoType<3>(s);
-        case 4: return MakeStdVectorReaderAutoType<4>(s);
+        case 0: r = MakePODReaderAutoType(s);
+        case 1: r = MakeStdVectorReaderAutoType<1>(s);
+        case 2: r = MakeStdVectorReaderAutoType<2>(s);
+        case 3: r = MakeStdVectorReaderAutoType<3>(s);
+        case 4: r = MakeStdVectorReaderAutoType<4>(s);
     }
-    assert(false);
+    assert(r);
+    r->_dstream = new DatastripeInputStream(d, WireFormatLite::FieldType(s->info().field_type()));
 }

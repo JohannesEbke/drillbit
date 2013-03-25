@@ -19,9 +19,9 @@ void read_metadata(bool make_vstream) {
     for (int i = 0; i < coded.size(); i++) {
             // Get the info message from the top
         if (make_vstream) {
-            StripeReader * sreader = StripeReader::Make(coded[i].first, coded[i].second);
+            StripeReader * sreader = StripeReader::Make(coded[i].first);
             sreaders.push_back(sreader);
-            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i]);
+            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], coded[i].second);
             readers.push_back(vreader);
         } else {
             CodedInputStream *meta = coded[i].first;

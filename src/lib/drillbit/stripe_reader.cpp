@@ -1,10 +1,9 @@
 #include "stripe_reader.h"
 #include "stripe_reader_impl.h"
 
-StripeReader * StripeReader::Make(CodedInputStream *meta, CodedInputStream *data) {
+StripeReader * StripeReader::Make(CodedInputStream *meta) {
     StripeReader * stripe = new StripeReader();
     stripe->_meta = meta;
-    stripe->_data = data;
     // Get the info message from the top
     uint32_t size = 0;
     assert(meta->ReadVarint32(&size));
@@ -13,6 +12,5 @@ StripeReader * StripeReader::Make(CodedInputStream *meta, CodedInputStream *data
     meta->PopLimit(limit);
     assert(stripe->_info.stripe_version() == 1);
     stripe->_field_type = stripe->_info.field_type();
-    stripe->_dstream = new DatastripeInputStream(data, WireFormatLite::FieldType(stripe->_info.field_type()));
     return stripe;
 }

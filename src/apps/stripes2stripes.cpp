@@ -13,8 +13,8 @@ void just_read_stripes(const std::vector<std::string>& dit_files) {
 
     std::vector<StdVectorReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {
-        StripeReader * sreader = StripeReader::Make(coded[i].first, coded[i].second);
-        StdVectorReader * vreader = StdVectorReader::Make(sreader);
+        StripeReader * sreader = StripeReader::Make(coded[i].first);
+        StdVectorReader * vreader = StdVectorReader::Make(sreader, coded[i].second);
         readers.push_back(vreader);
     }
 

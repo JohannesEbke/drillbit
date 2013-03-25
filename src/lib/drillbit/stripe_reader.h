@@ -16,20 +16,17 @@ using google::protobuf::io::CodedInputStream;
 
 class StripeReader {
  public:
-    static StripeReader * Make(CodedInputStream *meta, CodedInputStream *data);
+    static StripeReader * Make(CodedInputStream *meta);
     // Get the Stripe information
     const StripeInfo& info() const { return _info; };
     // assert that the type T is compatible with the stripe field type
     template<typename T> bool is_correct_type() const;
     // returns repetition and definition level of the next metadata line
-    // if the definition level is equal to the maximum possible, the 
-    // corresponding data is written to buffer, which is otherwise untouched.
-    template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl, T *buffer);
+    template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl);
  private:
-    StripeReader() : _info(), _meta(NULL), _data(NULL), _dstream(NULL) {};
+    StripeReader() : _info(), _meta(NULL) {};
     StripeInfo _info;
-    CodedInputStream *_meta, *_data;
-    DatastripeInputStream *_dstream;
+    CodedInputStream *_meta;
     int _field_type;
 };
 

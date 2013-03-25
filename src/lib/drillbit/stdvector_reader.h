@@ -7,7 +7,7 @@
 // An untemplated interface to a stdvectorreader with some common variables
 class StdVectorReader {
  public:
-    static StdVectorReader* Make(StripeReader *s); // Will return an instance of a typed reader
+    static StdVectorReader* Make(StripeReader *s, CodedInputStream *d); // Will return an instance of a typed reader
     virtual bool next() = 0;
     void * buffer() { return _buffer; }
     void * buffer_address() { return &_buffer; }
@@ -16,6 +16,7 @@ class StdVectorReader {
     StdVectorReader() : _buffer(NULL), _reader(NULL) {};
     void * _buffer;
     StripeReader *_reader;
+    DatastripeInputStream *_dstream;
 };
 
 // Plain-Old-Data reader for level==0 fields
@@ -49,11 +50,7 @@ class TypedStdVectorReader : public StdVectorReader {
     type _vbuf;
 
     TypedStdVectorReader() : _dl(0), _rl(0), _buf() { _buffer = &_vbuf; };
-    void decode_into(std::vector<T> &v, int rl);
-    template<typename U> 
-    void decode_into(std::vector<std::vector<U>> &v, int rl);
 };
-
 
 
 #endif
