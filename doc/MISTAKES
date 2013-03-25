@@ -1,0 +1,1 @@
+* Forgot to specify -O2/-O3 initially, running with -O0 for speed tests
