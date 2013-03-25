@@ -6,6 +6,10 @@
 .lua
 build
 data
+dit
 proof_of_concept/dit
 proof_of_concept/to_columns
 proof_of_concept/from_columns
+install
+root_test/PhotonTree
+setup.sh
