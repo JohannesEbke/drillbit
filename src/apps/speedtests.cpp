@@ -10,7 +10,6 @@ using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
 std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded;
-std::vector<DatastripeInputStream*> datastreams;
 std::vector<CodedInputStream*> metastreams;
 std::vector<StripeReader*> sreaders;
 std::vector<StdVectorReader*> readers;
@@ -32,9 +31,6 @@ void read_metadata(bool make_vstream) {
             assert(info.ParseFromCodedStream(meta));
             meta->PopLimit(limit);
             assert(info.stripe_version() == 1);
-
-            DatastripeInputStream * dstream = new DatastripeInputStream(coded[i].second, WireFormatLite::FieldType(info.field_type()));
-            datastreams.push_back(dstream);
             metastreams.push_back(meta);
         }
     }
@@ -62,21 +58,6 @@ void stream_data() {
         int size;
         const void *buf;
         while (coded[i].second->GetDirectBufferPointer(&buf, &size)) coded[i].second->Skip(size);
-    }
-}
-
-void decode_data() {
-    for (int i = 0; i < datastreams.size(); i++) {
-        decoded_data da[10];
-        if (datastreams[i]->type() == WireFormatLite::TYPE_STRING) {
-            for (int x = 0; x < 10; x++) {
-                new (&da[x]._string) std::string;
-            }
-        }
-        decoded_data *d;
-        int size;
-        //while(datastreams[i]->Next(&d, &size));
-        while(datastreams[i]->Place(da, 10));
     }
 }
 
@@ -113,8 +94,8 @@ int main(int argc, const char ** argv) {
         std::cout << " 3 : as 1 & decompress data" << std::endl;
         std::cout << " 4 : as 1 & decompress both" << std::endl;
         std::cout << " 5 : as 4 & decode metadata" << std::endl;
-        std::cout << " 6 : as 4 & decode data" << std::endl;
-        std::cout << " 7 : as 4 & decode both" << std::endl;
+        //std::cout << " 6 : as 4 & decode data" << std::endl;
+        //std::cout << " 7 : as 4 & decode both" << std::endl;
         std::cout << " 8 : decode into std::vectors per stripe" << std::endl;
         std::cout << " 9 : decode into std::vectors in parallel" << std::endl;
         return -1;
@@ -138,11 +119,13 @@ int main(int argc, const char ** argv) {
         decode_meta();
         stream_data();
     } else if (number == 6) {
-        stream_meta();
-        decode_data();
+        assert(false);
+        //stream_meta();
+        //decode_data();
     } else if (number == 7) {
-        decode_meta();
-        decode_data();
+        assert(false);
+        //decode_meta();
+        //decode_data();
     } else if (number == 8) {
         read_vstreams_sequentially();
     } else if (number == 9) {

@@ -4,7 +4,6 @@
 #include <string>
 
 #include "drillbit.pb.h"
-#include "datastripe_stream.h"
 
 namespace google { namespace protobuf { namespace io { class CodedInputStream; }; }; };
 using google::protobuf::io::CodedInputStream;
