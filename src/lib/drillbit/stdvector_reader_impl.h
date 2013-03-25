@@ -86,11 +86,11 @@ bool TypedStdVectorReader<type,level>::next() {
     // return false if the last next() marked the stream as finished
     if (_dl == UINT8_MAX) return false;
 
-
     // Special case handling of the first tag in the event
     // if the event is empty, read the next tag and return
     if (_dl == 0 and _rl == 0) {
         if (not _reader->next_line<T,level>(_rl, _dl)) _dl = UINT8_MAX;
+        if (level == 1) _vbuf.clear();
         return true;
     } else if (_rl == 0) {
         if (_dl == level) {
@@ -109,8 +109,6 @@ bool TypedStdVectorReader<type,level>::next() {
 
     // Now go into the loop...
     while (true) {
-        assert(_dl >= _rl); // mandated by the anti-corruption authority
-        if (_dl == UINT8_MAX) return false;
         //std::cerr << "DLRL " << dl_rl << std::endl;
         if (_rl == 0) {
             // Reached next event. Flush and return.
