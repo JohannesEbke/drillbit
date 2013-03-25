@@ -375,6 +375,7 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     zstream.Close();
     meta_fstream.Close();
     fstream.Close();
+    close(fd);
 }
 
 void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {

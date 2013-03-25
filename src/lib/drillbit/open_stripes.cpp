@@ -98,6 +98,8 @@ vector<pair<CodedInputStream*, CodedInputStream*>> open_stripes(const vector<str
         CodedInputStream *cm = new CodedInputStream(zm);
         assert(cd);
         assert(cm);
+        cd->SetTotalBytesLimit(1024*1024*1024, 1024*1024*1024);
+        cm->SetTotalBytesLimit(1024*1024*1024, 1024*1024*1024);
         coded.push_back(make_pair(cm, cd));
     }
 #else // .. but this one is better on the netbook (but takes more memory)
