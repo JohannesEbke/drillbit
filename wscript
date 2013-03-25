@@ -39,7 +39,7 @@ def configure(conf):
     conf.load(packages)
     conf.load("lua protoc dynasm", tooldir="waf-tools")
     conf.get_cc_version(conf.env.CXX)
-    if conf.env.CXX == "g++" and conf.env.CC_VERSION < ("4","6"):
+    if "g++" in str(conf.env.CXX) and conf.env.CC_VERSION < ("4","6"):
         conf.fatal("We require at least gcc 4.6 at this time.")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb", "-O3"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
