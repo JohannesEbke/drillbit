@@ -1,0 +1,58 @@
+extern data.atlas.cern.ch/exotics/diphoton/event#master:
+        
+    event:
+    
+        D3PD(NTUP_PHOTON, p868)
+        
+        datasets:
+            data:
+                data12.{...}/
+            mc:
+                mc12.{...}/
+    
+        official_recommendations:        
+            dq:
+                grl(PHYS_CombinedPerf_Egamma_Eg_standard)
+                
+            ph.pt = tool(svn://atlasoff.cern.ch/../correct/the/pt#SOME_SORT_OF_TAG)
+            ph.isolation = tool(svn://atlasoff.cern.ch/../correct/the/isolation#SOME_SORT_OF_TAG)
+            ph.old_isolation = tool(svn://atlasoff.cern.ch/../correct/the/isolation#SOME_SORT_OF_TAG_1)
+
+definitions:
+    dataset = import data.atlas.cern.ch/exotics/diphoton/event#master
+    
+    O = dataset/official_recommendations@{2013-03-15}
+        
+    # By default, variables come unmodified from the event
+    event = dataset
+    ph = container event.photons
+    
+    # Specific things can be overridden from other recommendations, 
+    dq <- O
+    ph.pt <- O
+    ph.isolation <- O
+    function invariant_mass <- O
+    
+select event:
+    # Selections which are applied to the event in order.
+    # Expressions are either boolean, or apply transformations to collections
+    EF_2g20_loose
+    dq
+    # Remove objects
+    select ph:
+        pt >= 20 GeV
+    N(ph) >= 2
+    sort(ph, ph.pt)
+    truncate(ph, 2)
+
+dump event:
+    # Variables which end up on the dumped D 3PD
+    ph.pt GeV
+    ph.{eta,phi}
+    ph.showershapes
+    ph.isolation
+    ph.{tight,loose,isEM}
+    lead = ph[0]
+    subl = ph[1]
+    mgg = invariant_mass(lead, subl)
+
