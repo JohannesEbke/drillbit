@@ -23,7 +23,7 @@ class MetaReader {
     MetaReader() : _info(), _meta(NULL) {};
     StripeInfo _info;
     CodedInputStream *_meta;
-    uint8_t _nbits_modulo, _max_dl;
+    uint8_t _max_dl;
 };
 
 class MetaWriter {
@@ -37,7 +37,7 @@ class MetaWriter {
  private:
     CodedOutputStream *_meta;
     StripeInfo _info;
-    uint8_t _nbits, _max_dl;
+    uint8_t _max_dl;
 };
 
 #endif

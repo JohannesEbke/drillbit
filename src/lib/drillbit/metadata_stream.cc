@@ -21,7 +21,6 @@ MetaReader * MetaReader::Make(CodedInputStream *meta) {
     // Read information from the message
     assert(reader->_info.stripe_version() == 2);
     reader->_max_dl = reader->_info.max_dl();
-    reader->_nbits_modulo = (1 << bits_needed_for(reader->_info.max_dl()));
     return reader;
 }
 
@@ -33,5 +32,4 @@ void MetaWriter::start(CodedOutputStream *meta, const StripeInfo &info) {
     _meta->WriteVarint32(_info.ByteSize());
     _info.SerializeToCodedStream(_meta);
     _max_dl = _info.max_dl();
-    _nbits = bits_needed_for(_info.max_dl());
 }
