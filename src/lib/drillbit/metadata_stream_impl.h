@@ -18,7 +18,11 @@ inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
     if (not _meta->ReadVarint32(&tag)) return false;
     dl = tag % _nbits_modulo;
     rl = tag / _nbits_modulo;
-    assert(dl >= rl); // mandated by the anti-corruption authority
+    if (dl < rl) {
+        std::cerr << "Tag: " << int(tag) << " bits modulo: " << int(_nbits_modulo) << " rl=" << int(rl) << " dl=" << int(dl) << std::endl;
+        std::cerr << _info.DebugString() << std::endl;
+        assert(dl >= rl); // mandated by the anti-corruption authority
+    }
     return true;
 }
 

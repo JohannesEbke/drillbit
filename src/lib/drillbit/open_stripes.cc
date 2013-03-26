@@ -125,7 +125,7 @@ class StripeInputImplCompressedCopy : public StripeInputImpl {
     virtual ~StripeInputImplCompressedCopy() {
         if (id == NULL) return;
         // delete in reverse order
-        delete cd, cm, zd, zm, id, im;
+        delete cd; delete cm; delete zd; delete zm; delete id; delete im;
         free(dit.first);
         free(ditm.first);
     }
@@ -180,6 +180,8 @@ class StripeOutputImplCompressed : public StripeOutputImpl {
     StripeOutputImplCompressed() : fd_data(-1) {}; // for checking
 
     StripeOutputStream init(std::string fn) {
+        this->fn = fn;
+
         // Compression options
         GzipOutputStream::Options options;
         options.compression_level = 1;
@@ -208,18 +210,22 @@ class StripeOutputImplCompressed : public StripeOutputImpl {
 
     virtual ~StripeOutputImplCompressed() {
         if (fd_data == -1) return;
-        delete co_data, co_meta;
-        zstream_data->Close();
-        zstream_meta->Close();
-        delete zstream_data, zstream_meta;
+        delete co_data;
+        delete co_meta;
+        assert(zstream_meta->Close());
+        assert(zstream_data->Close());
+        delete zstream_data;
+        delete zstream_meta;
         fstream_data->Close();
         fstream_meta->Close();
-        delete fstream_data, fstream_meta;
+        delete fstream_data;
+        delete fstream_meta;
         close(fd_data);
         close(fd_meta);
     }
 
  private:
+    std::string fn;
     int fd_data, fd_meta;
     FileOutputStream *fstream_data, *fstream_meta;
     GzipOutputStream *zstream_data, *zstream_meta;

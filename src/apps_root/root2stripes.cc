@@ -449,7 +449,7 @@ int main(int argc, char * const *argv) {
     vector<string> fnmatch_patterns;
     
     const char *treename = NULL,
-               *outdir = "dit/";
+               *outdir = "dit";
     
     // Parse options
     while (true) {
