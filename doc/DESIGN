@@ -53,7 +53,11 @@ Drillbit plans to support the following workflows:
 
 [I have a skimmed/thinned D3PD produced somehow and I want another column]
 [Use other peoples definitions of collections of variables/data]
+
+Random Ideas
+------------
 [since metadata can be just another column, we includes stuff like the cross-section in the data store]
+[represent "sym/hard"links in a zipfile? For example by having the record header point to the same bytes. That might be one way of deduplicating the ditm]
 
 The Databases
 -------------
