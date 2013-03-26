@@ -18,8 +18,6 @@ class MetaReader {
     static MetaReader * Make(CodedInputStream *meta);
     // Get the Stripe information
     const StripeInfo& info() const { return _info; };
-    // assert that the type T is compatible with the stripe field type
-    template<typename T> bool is_correct_type() const;
     // returns repetition and definition level of the next metadata line
     template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl);
  private:

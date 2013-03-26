@@ -11,27 +11,6 @@
 using google::protobuf::internal::WireFormatLite;
 using google::protobuf::io::CodedInputStream;
 
-
-template<typename T>
-bool MetaReader::is_correct_type() const {
-    switch(WireFormatLite::FieldTypeToCppType(WireFormatLite::FieldType(_info.field_type()))) {
-        case WireFormatLite::CPPTYPE_INT32:  return std::is_same<T, int32_t>::value;
-        case WireFormatLite::CPPTYPE_UINT32: return std::is_same<T, uint32_t>::value;
-        case WireFormatLite::CPPTYPE_FLOAT:  return std::is_same<T, float>::value;
-        case WireFormatLite::CPPTYPE_BOOL:   return std::is_same<T, bool>::value;
-        case WireFormatLite::CPPTYPE_ENUM:   return std::is_same<T, int>::value;
-        case WireFormatLite::CPPTYPE_INT64:  return std::is_same<T, int64_t>::value;
-        case WireFormatLite::CPPTYPE_UINT64: return std::is_same<T, uint64_t>::value;
-        case WireFormatLite::CPPTYPE_DOUBLE: return std::is_same<T, double>::value;
-        case WireFormatLite::CPPTYPE_STRING: return std::is_same<T, std::string>::value;
-        case WireFormatLite::CPPTYPE_MESSAGE:
-        default:
-            std::cerr << "Unknown/Unsupported field type " << _info.field_type() << std::endl;
-            assert(false);
-            return false;
-    }
-};
-
 // returns repetition and definition level of the next metadata line
 // if the definition level is equal to the maximum possible, the 
 // corresponding data is written to buffer, which is otherwise untouched.
