@@ -2,22 +2,22 @@
 #define STDVECTOR_READER_H_
 
 #include "drillbit.pb.h"
-#include "stripe_reader.h"
+#include "metadata_stream.h"
 #include "data_codec.h"
 
 // An untemplated interface to a stdvectorreader with some common variables
 class StdVectorReader {
  public:
-    static StdVectorReader* Make(StripeReader *s, CodedInputStream *d); // Will return an instance of a typed reader
+    static StdVectorReader* Make(MetaReader *s, CodedInputStream *d); // Will return an instance of a typed reader
 
     virtual bool next() = 0;
     void * buffer() { return _buffer; }
     void * buffer_address() { return &_buffer; }
-    const StripeReader* stripe_reader() const { return _reader; }
+    const MetaReader* metadata_stream() const { return _reader; }
  protected:
     StdVectorReader() : _buffer(NULL), _reader(NULL) {};
     void * _buffer;
-    StripeReader *_reader;
+    MetaReader *_reader;
 };
 
 // Plain-Old-Data reader for level==0 fields
@@ -25,7 +25,7 @@ template<WireFormatLite::FieldType type>
 class TypedPODReader : public StdVectorReader {
  public:
     typedef typename TypeFromFieldType<type>::type T;
-    static TypedPODReader<type>* Make(StripeReader *sreader, CodedInputStream *d);
+    static TypedPODReader<type>* Make(MetaReader *sreader, CodedInputStream *d);
     bool next();
  private:
     T _buf;
@@ -41,7 +41,7 @@ class TypedStdVectorReader : public StdVectorReader {
     typedef typename TypeFromFieldType<type>::type T;
     // Create a typedef that contains the required std::vector
     typedef typename NestedVector<T,level>::type vT;
-    static TypedStdVectorReader<type,level>* Make(StripeReader *sreader, CodedInputStream *d);
+    static TypedStdVectorReader<type,level>* Make(MetaReader *sreader, CodedInputStream *d);
     bool next();
     const vT& data() const { return _vbuf; };
  private:

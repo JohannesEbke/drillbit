@@ -13,9 +13,9 @@ using google::protobuf::io::CodedInputStream;
 // * decode wire into cpp type
 // * yield rl/dl/data triples
 
-class StripeReader {
+class MetaReader {
  public:
-    static StripeReader * Make(CodedInputStream *meta);
+    static MetaReader * Make(CodedInputStream *meta);
     // Get the Stripe information
     const StripeInfo& info() const { return _info; };
     // assert that the type T is compatible with the stripe field type
@@ -23,7 +23,7 @@ class StripeReader {
     // returns repetition and definition level of the next metadata line
     template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl);
  private:
-    StripeReader() : _info(), _meta(NULL) {};
+    MetaReader() : _info(), _meta(NULL) {};
     StripeInfo _info;
     CodedInputStream *_meta;
     int _field_type;

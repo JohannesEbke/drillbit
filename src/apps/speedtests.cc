@@ -11,14 +11,14 @@ using google::protobuf::io::CodedInputStream;
 std::vector<std::string> dit_files;
 std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded;
 std::vector<CodedInputStream*> metastreams;
-std::vector<StripeReader*> sreaders;
+std::vector<MetaReader*> sreaders;
 std::vector<StdVectorReader*> readers;
 
 void read_metadata(bool make_vstream) {
     for (int i = 0; i < coded.size(); i++) {
             // Get the info message from the top
         if (make_vstream) {
-            StripeReader * sreader = StripeReader::Make(coded[i].first);
+            MetaReader * sreader = MetaReader::Make(coded[i].first);
             sreaders.push_back(sreader);
             StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], coded[i].second);
             readers.push_back(vreader);

@@ -1,8 +1,8 @@
-#include "stripe_reader.h"
-#include "stripe_reader_impl.h"
+#include "metadata_stream.h"
+#include "metadata_stream_impl.h"
 
-StripeReader * StripeReader::Make(CodedInputStream *meta) {
-    StripeReader * stripe = new StripeReader();
+MetaReader * MetaReader::Make(CodedInputStream *meta) {
+    MetaReader * stripe = new MetaReader();
     stripe->_meta = meta;
     // Get the info message from the top
     uint32_t size = 0;

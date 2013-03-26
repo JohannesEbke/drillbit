@@ -13,7 +13,7 @@ using google::protobuf::io::CodedInputStream;
 
 
 template<typename T>
-bool StripeReader::is_correct_type() const {
+bool MetaReader::is_correct_type() const {
     switch(WireFormatLite::FieldTypeToCppType(WireFormatLite::FieldType(_info.field_type()))) {
         case WireFormatLite::CPPTYPE_INT32:  return std::is_same<T, int32_t>::value;
         case WireFormatLite::CPPTYPE_UINT32: return std::is_same<T, uint32_t>::value;
@@ -35,7 +35,7 @@ bool StripeReader::is_correct_type() const {
 // returns repetition and definition level of the next metadata line
 // if the definition level is equal to the maximum possible, the 
 // corresponding data is written to buffer, which is otherwise untouched.
-template<typename T, int level> bool StripeReader::next_line(uint8_t &rl, uint8_t &dl) {
+template<typename T, int level> bool MetaReader::next_line(uint8_t &rl, uint8_t &dl) {
     assert(level > 0);
     uint32_t tag = 0;
     if (not _meta->ReadVarint32(&tag)) return false;

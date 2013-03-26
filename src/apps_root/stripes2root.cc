@@ -16,7 +16,7 @@ using google::protobuf::io::CodedInputStream;
 
 // Create a branch of this type in the given ROOT Tree and hold on to it
 TBranch* make_branch(StdVectorReader *reader, TTree *tree) {
-    const StripeInfo &info = reader->stripe_reader()->info();
+    const StripeInfo &info = reader->metadata_stream()->info();
     ensure_dictionary(info.root_type().c_str());
     uint32_t level = info.level();
     // Create Branch
@@ -52,7 +52,7 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
 
     std::vector<StdVectorReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {
-        StripeReader * sreader = StripeReader::Make(coded[i].first);
+        MetaReader * sreader = MetaReader::Make(coded[i].first);
         StdVectorReader * vreader = StdVectorReader::Make(sreader, coded[i].second);
         assert(make_branch(vreader, tree));
         readers.push_back(vreader);

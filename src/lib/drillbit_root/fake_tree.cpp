@@ -27,7 +27,7 @@ DrillbitTree * DrillbitTree::Make(const std::vector<std::string> &files) {
     DrillbitTree * t = new DrillbitTree();
     std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded = open_stripes(files);
     for (int i = 0; i < files.size(); i++) {
-        StripeReader * sreader = StripeReader::Make(coded[i].first);
+        MetaReader * sreader = MetaReader::Make(coded[i].first);
         StdVectorReader * vreader = StdVectorReader::Make(sreader, coded[i].second);
         t->_readers.push_back(vreader);
         t->_readers_map[sreader->info().root_name()] = vreader;

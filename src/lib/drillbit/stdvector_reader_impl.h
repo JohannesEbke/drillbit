@@ -3,10 +3,10 @@
 
 #include "data_codec_impl.h"
 #include "stdvector_reader.h"
-#include "stripe_reader_impl.h"
+#include "metadata_stream_impl.h"
 
 template<WireFormatLite::FieldType type>
-TypedPODReader<type>* TypedPODReader<type>::Make(StripeReader *sreader, CodedInputStream *d) {
+TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, CodedInputStream *d) {
     assert(sreader->is_correct_type<T>());
     assert(0 == sreader->info().level());
     TypedPODReader<type>* reader = new TypedPODReader<type>();
@@ -23,7 +23,7 @@ bool TypedPODReader<type>::next() {
 }
 
 template<WireFormatLite::FieldType type, int level>
-TypedStdVectorReader<type,level>* TypedStdVectorReader<type,level>::Make(StripeReader *sreader, CodedInputStream *d) {
+TypedStdVectorReader<type,level>* TypedStdVectorReader<type,level>::Make(MetaReader *sreader, CodedInputStream *d) {
     assert(sreader->is_correct_type<T>());
     assert(level == sreader->info().level());
     TypedStdVectorReader<type,level>* reader = new TypedStdVectorReader<type,level>();
