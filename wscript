@@ -32,14 +32,16 @@ def options(opt):
     opt.load(packages)
 
 def configure(conf):
-    import os
+    import os, os.path
+
     if not os.path.exists("src/lib/zerocc/test.cc"):
         if os.system("git submodule update --init") != 0:
             conf.fatal("Could not initialize necessary submodules!")
     conf.load(packages)
     conf.load("lua protoc dynasm", tooldir="waf-tools")
     conf.get_cc_version(conf.env.CXX)
-    if "/g++" in str(conf.env.CXX) and conf.env.CC_VERSION < ("4","6"):
+    cxxexe = os.path.basename(str(conf.env.CXX))
+    if cxxexe.startswith("g++") and conf.env.CC_VERSION < ("4","6"):
         conf.fatal("We require at least gcc 4.6 at this time.")
     conf.env.append_value("CXXFLAGS", ["-std=c++0x", "-ggdb", "-O3"])
     conf.env.append_value("LINKFLAGS", ["-Wl,--no-as-needed"])
