@@ -61,6 +61,29 @@ class TypeFromFieldType {
     >::type>::type>::type>::type>::type>::type>::type>::type>::type type;
 };
 
+// Macro to switch a dynamic type into a statically compiled type
+// Due to variadic macros, you can write any code on the right-hand side
+// In that code, "type" is a const WireFormatLite::FieldType which you can use e.g.
+// in templates.
+#define SWITCH_TYPE_TO_CONST(ftype, ...) switch(ftype) {\
+    case WireFormatLite::TYPE_DOUBLE: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_DOUBLE; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_FLOAT: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_FLOAT; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_INT64: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_INT64; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_UINT64: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_UINT64; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_INT32: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_INT32; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_FIXED64: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_FIXED64; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_FIXED32: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_FIXED32; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_BOOL: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_BOOL; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_STRING: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_STRING; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_BYTES: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_BYTES; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_UINT32: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_UINT32; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_ENUM: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_ENUM; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_SFIXED32: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_SFIXED32; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_SFIXED64: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_SFIXED64; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_SINT32: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_SINT32; { __VA_ARGS__ ;}; break; }\
+    case WireFormatLite::TYPE_SINT64: { const WireFormatLite::FieldType type = WireFormatLite::TYPE_SINT64; { __VA_ARGS__ ;}; break; }\
+}
+
 template<typename T, unsigned int L>
 class NestedVector {
  public:
