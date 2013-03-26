@@ -7,7 +7,7 @@
 
 template<WireFormatLite::FieldType type>
 TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, CodedInputStream *d) {
-    assert(0 == sreader->info().level());
+    assert(0 == sreader->info().max_dl());
     TypedPODReader<type>* reader = new TypedPODReader<type>();
     reader->_reader = sreader;
     reader->_decoder.connect(d);
@@ -23,7 +23,7 @@ bool TypedPODReader<type>::next() {
 
 template<WireFormatLite::FieldType type, int level>
 TypedStdVectorReader<type,level>* TypedStdVectorReader<type,level>::Make(MetaReader *sreader, CodedInputStream *d) {
-    assert(level == sreader->info().level());
+    assert(level == sreader->info().max_dl());
     TypedStdVectorReader<type,level>* reader = new TypedStdVectorReader<type,level>();
     reader->_reader = sreader;
     reader->_decoder.connect(d);
@@ -87,7 +87,7 @@ bool TypedStdVectorReader<type,level>::next() {
     // Special case handling of the first tag in the event
     // if the event is empty, read the next tag and return
     if (_dl == 0 and _rl == 0) {
-        if (not _reader->next_line<T,level>(_rl, _dl)) _dl = UINT8_MAX;
+        if (not _reader->next_rldl(_rl, _dl)) _dl = UINT8_MAX;
         if (level == 1) _vbuf.clear();
         return true;
     } else if (_rl == 0) {
@@ -98,7 +98,7 @@ bool TypedStdVectorReader<type,level>::next() {
             empty_vector<T>(_vbuf, _rl, _dl);
         }
         // deal with end-of-stream
-        if (not _reader->next_line<T,level>(_rl, _dl)) {
+        if (not _reader->next_rldl(_rl, _dl)) {
             _dl = UINT8_MAX; // look at the next tag
             if (n_elements > 0) decode_into(_vbuf, last_rl, n_elements);
             return true;
@@ -127,7 +127,7 @@ bool TypedStdVectorReader<type,level>::next() {
                 empty_vector<T>(_vbuf, _rl, _dl);
             }
             // read next tag!
-            if (not _reader->next_line<T,level>(_rl, _dl)) {
+            if (not _reader->next_rldl(_rl, _dl)) {
                 _dl = UINT8_MAX; // end of stream
                 if (n_elements > 0) decode_into(_vbuf, last_rl, n_elements);
                 return true;

@@ -9,55 +9,55 @@ using namespace std;
 using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
-std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded;
+std::vector<StripeInputStream> streams;
 std::vector<CodedInputStream*> metastreams;
 std::vector<MetaReader*> sreaders;
 std::vector<StdVectorReader*> readers;
 
 void read_metadata(bool make_vstream) {
-    for (int i = 0; i < coded.size(); i++) {
+    for (int i = 0; i < streams.size(); i++) {
             // Get the info message from the top
         if (make_vstream) {
-            MetaReader * sreader = MetaReader::Make(coded[i].first);
+            MetaReader * sreader = MetaReader::Make(streams[i].meta);
             sreaders.push_back(sreader);
-            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], coded[i].second);
+            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], streams[i].data);
             readers.push_back(vreader);
         } else {
-            CodedInputStream *meta = coded[i].first;
+            CodedInputStream *meta = streams[i].meta;
             uint32_t size = 0;
             assert(meta->ReadVarint32(&size));
             auto limit = meta->PushLimit(size);
             StripeInfo info;
             assert(info.ParseFromCodedStream(meta));
             meta->PopLimit(limit);
-            assert(info.stripe_version() == 1);
+            assert(info.stripe_version() <= 2);
             metastreams.push_back(meta);
         }
     }
 }
 
 void stream_all() {
-    for (int i = 0; i < coded.size(); i++) {
+    for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (coded[i].first->GetDirectBufferPointer(&buf, &size)) coded[i].first->Skip(size);
-        while (coded[i].second->GetDirectBufferPointer(&buf, &size)) coded[i].second->Skip(size);
+        while (streams[i].meta->GetDirectBufferPointer(&buf, &size)) streams[i].meta->Skip(size);
+        while (streams[i].data->GetDirectBufferPointer(&buf, &size)) streams[i].data->Skip(size);
     }
 }
 
 void stream_meta() {
-    for (int i = 0; i < coded.size(); i++) {
+    for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (coded[i].first->GetDirectBufferPointer(&buf, &size)) coded[i].first->Skip(size);
+        while (streams[i].meta->GetDirectBufferPointer(&buf, &size)) streams[i].meta->Skip(size);
     }
 }
 
 void stream_data() {
-    for (int i = 0; i < coded.size(); i++) {
+    for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (coded[i].second->GetDirectBufferPointer(&buf, &size)) coded[i].second->Skip(size);
+        while (streams[i].data->GetDirectBufferPointer(&buf, &size)) streams[i].data->Skip(size);
     }
 }
 
@@ -104,7 +104,7 @@ int main(int argc, const char ** argv) {
     for(int i = 2; i < argc; i++) {
         dit_files.push_back(argv[i]);
     }
-    coded = open_stripes(dit_files);
+    streams = open_stripes(dit_files);
     if (number == 0) return 0;
     read_metadata(number >= 8);
     if (number == 1) return 0;

@@ -1,0 +1,12 @@
+
+message StripeInfo
+{
+    required int32 stripe_version = 1;
+    optional uint32 field_type = 2;
+    optional uint32 max_dl = 3;
+    optional uint32 max_rl = 4;
+    optional string root_name = 5;
+    optional string root_type = 6;
+}
+
+

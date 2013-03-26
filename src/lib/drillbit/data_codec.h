@@ -33,8 +33,8 @@ class DataEncoder {
     explicit DataEncoder() : _sub_stream(NULL) {};
     void connect(CodedOutputStream* sub_stream) { assert(!_sub_stream); _sub_stream = sub_stream; };
 
-    bool Encode(const typename TypeFromFieldType<type>::type &data);
-    bool Encode(const typename TypeFromFieldType<type>::type *data, int size);
+    void Encode(const typename TypeFromFieldType<type>::type *data, int size);
+    void Encode(const typename TypeFromFieldType<type>::type &data);
 
  private:
     CodedOutputStream* _sub_stream;

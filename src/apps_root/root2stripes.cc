@@ -30,7 +30,13 @@
 #include <google/protobuf/wire_format_lite.h>
 #include <google/protobuf/wire_format_lite_inl.h>
 
-#include "drillbit.pb.h"
+#include "metadata.pb.h"
+#include "open_stripes.h"
+#include "data_codec.h"
+#include "data_codec_impl.h"
+#include "metadata_stream.h"
+#include "metadata_stream_impl.h"
+
 #include "root_dictionaries.h"
 
 using google::protobuf::io::FileOutputStream;
@@ -55,42 +61,6 @@ string remove_vector(string type) {
     return res;
 }
 
-namespace internal {
-#define MAP(X, Y) \
-    template<enum WireFormatLite::FieldType SpecifiedFieldType, typename CType> \
-    typename std::enable_if<SpecifiedFieldType == WireFormatLite::TYPE_ ## X>::type \
-    WriteOut(CType v, CodedOutputStream* o) { WireFormatLite::Write ## Y ## NoTag(v, o); };
-    MAP(INT32, Int32);
-    MAP(INT64, Int64);
-    MAP(UINT32, UInt32);
-    MAP(UINT64, UInt64);
-    MAP(SINT32, SInt32);
-    MAP(SINT64, SInt64);
-    MAP(FIXED32, Fixed32);
-    MAP(FIXED64, Fixed64);
-    MAP(SFIXED32, SFixed32);
-    MAP(SFIXED64, SFixed64);
-    MAP(FLOAT, Float);
-    MAP(DOUBLE, Double);
-    MAP(BOOL, Bool);
-    MAP(ENUM, Enum);
-#undef MAP
-    template <enum WireFormatLite::FieldType SpecifiedFieldType, typename CType>
-    typename std::enable_if<SpecifiedFieldType == WireFormatLite::TYPE_STRING>::type 
-    WriteOut(string v, CodedOutputStream *o) {
-        o->WriteVarint32(v.size());
-        o->WriteString(v);
-    };
-};
-
-template <enum WireFormatLite::FieldType SpecdFieldType, typename CType>
-class FieldWriter {
- public:
-    CodedOutputStream *o;
-    FieldWriter(CodedOutputStream *o) : o(o) {};
-    void WriteOut(CType v) { return internal::WriteOut<SpecdFieldType,CType>(v, o); };
-};
-
 /*template <enum WireFormatLite::FieldType SpecifiedFieldType, int maxlevel, int level, typename T>
 void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutputStream *o2) {
     const int DL = 1; // definition level multiplier
@@ -99,7 +69,7 @@ void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutp
         int rl = (l > 0 ? level : repetition_level);
         o2->WriteVarint32(level*DL + rl*RL);
         if (level == maxlevel) {
-            WriteOut<SpecifiedFieldType>(data.at(l), o);
+            Encode<SpecifiedFieldType>(data.at(l), o);
         } else {
             RecursiveDump<SpecifiedFieldType, maxlevel, level+1>(data.at(l), rl, o, o2);
         }
@@ -107,24 +77,25 @@ void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutp
 }*/
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o) {
+void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o, MetaWriter& meta) {
     if (verbose) cerr << "Dump " << leaf.GetName() << endl;
     auto *branch = leaf.GetBranch();
 
     T data;
     branch->SetAddress(&data);
     
-    FieldWriter<SpecifiedFieldType, T> writer(&o);
+    DataEncoder<SpecifiedFieldType> writer;
+    writer.connect(&o);
     
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
-        writer.WriteOut(data);
+        writer.Encode(data);
     }
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     
@@ -136,7 +107,8 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
     T *data = new T[length];
     branch->SetAddress(data); // Note: this should not be &data.
     
-    FieldWriter<SpecifiedFieldType, T> writer(&o);
+    DataEncoder<SpecifiedFieldType> writer;
+    writer.connect(&o);
     
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) {
@@ -144,8 +116,8 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
         for (int j = 0; j < length; j++) {
             int dl = 1;
             int rl = (j > 0 ? 1 : 0);
-            o2.WriteVarint32(dl*DL + rl*RL);
-            writer.WriteOut(data[j]);
+            meta.write_rldl(rl, dl);
+            writer.Encode(data[j]);
         }
     }
     
@@ -153,7 +125,7 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     if (verbose) cerr << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
@@ -162,18 +134,19 @@ void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     vector<T> *data = NULL;
     branch->SetAddress(&data);
     
-    FieldWriter<SpecifiedFieldType, T> writer(&o);
+    DataEncoder<SpecifiedFieldType> writer;
+    writer.connect(&o);
     
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->size() == 0) {
-            o2.WriteVarint32(0*DL + 0*RL);
+            meta.write_rldl(0, 0);
         } else {
             int rl = 0;
             for (auto j = data->cbegin(); j != data->cend(); j++) {
-                o2.WriteVarint32(1*DL + rl*RL);
-                writer.WriteOut(*j);
+                meta.write_rldl(rl, 1);
+                writer.Encode(*j);
                 rl = 1;
             }
         }
@@ -181,7 +154,7 @@ void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -191,22 +164,23 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     vector<vector<T> > *data = NULL;
     branch->SetAddress(&data);
     
-    FieldWriter<SpecifiedFieldType, T> writer(&o);
+    DataEncoder<SpecifiedFieldType> writer;
+    writer.connect(&o);
     
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->empty()) {
-            o2.WriteVarint32(DL*0 + RL*0);
+            meta.write_rldl(0, 0);
         } else {
             int rl = 0;
             for (auto j = data->cbegin(); j != data->cend(); j++) {
                 if (j->empty()) {
-                    o2.WriteVarint32(1*DL + rl*RL);
+                    meta.write_rldl(rl, 1);
                 } else {
                     for (auto k = j->cbegin(); k != j->cend(); k++) {
-                        o2.WriteVarint32(2*DL + rl*RL);
-                        writer.WriteOut(*k);
+                        meta.write_rldl(rl, 2);
+                        writer.Encode(*k);
                         rl = 2;
                     }
                 }
@@ -218,7 +192,7 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
 
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -228,26 +202,27 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
     vector<vector<vector<T> > > *data = NULL;
     branch->SetAddress(&data);
     
-    FieldWriter<SpecifiedFieldType, T> writer(&o);
+    DataEncoder<SpecifiedFieldType> writer;
+    writer.connect(&o);
     
     int entries = branch->GetEntries();
     for (int i = 0; i < entries; i++) { 
         branch->GetEntry(i);
         if (data->empty()) {
-            o2.WriteVarint32(DL*0 + RL*0);
+            meta.write_rldl(0, 0);
         } else {
             int rl = 0;
             for (auto j = data->cbegin(); j != data->cend(); j++) {
                 if (j->empty()) {
-                    o2.WriteVarint32(1*DL + rl*RL);
+                    meta.write_rldl(rl, 1);
                 } else {
                     for (auto k = j->cbegin(); k != j->cend(); k++) {
                         if (k->empty()) {
-                            o2.WriteVarint32(2*DL + rl*RL);
+                            meta.write_rldl(rl, 2);
                         } else {
                             for (auto l = k->cbegin(); l != k->cend(); l++) {
-                                o2.WriteVarint32(3*DL + rl*RL);
-                                writer.WriteOut(*l);
+                                meta.write_rldl(rl, 3);
+                                writer.Encode(*l);
                                 rl = 3;
                             }
                         }
@@ -263,25 +238,26 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
 void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
     StripeInfo info;
-    info.set_stripe_version(1);
-    info.set_level(level);
+    info.set_stripe_version(2);
     info.set_field_type(SpecifiedFieldType);
+    info.set_max_dl(level);
+    info.set_max_rl(level);
     info.set_root_name(leaf.GetName());
     info.set_root_type(leaf.GetTypeName());
-    o2.WriteVarint32(info.ByteSize());
-    info.SerializeToCodedStream(&o2);
+    MetaWriter meta;
+    meta.start(&o2, info);
     switch (level) {
         case 0:
-            dump_required_lvl0<SpecifiedFieldType, T>(leaf, o);
+            dump_required_lvl0<SpecifiedFieldType, T>(leaf, o, meta);
             break;
         case 1:
-            dump_required_lvl1<SpecifiedFieldType, T>(leaf, o, o2);
+            dump_required_lvl1<SpecifiedFieldType, T>(leaf, o, meta);
             break;
         case 2:
-            dump_required_lvl2<SpecifiedFieldType, T>(leaf, o, o2);
+            dump_required_lvl2<SpecifiedFieldType, T>(leaf, o, meta);
             break;
         case 3:
-            dump_required_lvl3<SpecifiedFieldType, T>(leaf, o, o2);
+            dump_required_lvl3<SpecifiedFieldType, T>(leaf, o, meta);
             break;
         default:
             cerr << "The level is too damn high!" << endl;
@@ -294,88 +270,67 @@ void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStre
 void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     ensure_dictionary(&leaf);
 
-    GzipOutputStream::Options options;
-    options.compression_level = 1;
-    
-    // Open data file
     string fn = string(outdir) + "/" + leaf.GetName() + ".dit";
-    auto fd = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-    assert(fd != -1);
-    FileOutputStream fstream(fd);
-    GzipOutputStream zstream(&fstream, options);
+    StripeOutputStream ostream = open_stripes_write(fn);
+    CodedOutputStream &o = *ostream.data;
+    CodedOutputStream &o2 = *ostream.meta;
 
-
-    // Open meta file
-    string mfn = fn + "m";
-    auto mfd = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-    assert(mfd != -1);
-    FileOutputStream meta_fstream(mfd);
-    GzipOutputStream meta_zstream(&meta_fstream, options);
-    
-    { // Coded stream block 
-        CodedOutputStream o(&zstream);
-        CodedOutputStream o2(&meta_zstream);
-
-        // determine level and type name
-        int level = 0;
-        string tn = leaf.GetTypeName();
-        while (tn.substr(0,6) == "vector") {
-            level = level + 1;
-            tn = remove_vector(tn);
-        }
-        
-        // Resolve ROOT's "Int_t", etc into plain C++ types
-        tn = TClassEdit::ResolveTypedef(tn.c_str(), true);
-
-        // The integer types could also be coded as INT32 or FIXED32 or SFIXED32
-        
-        // Float types
-        if (tn == "float") {
-            dump_required<WireFormatLite::TYPE_FLOAT, float>(level, leaf, o, o2);
-        } else if (tn == "double") {
-            dump_required<WireFormatLite::TYPE_DOUBLE, double>(level, leaf, o, o2);
-            
-        // Misc types
-        } else if (tn == "bool") {
-            dump_required<WireFormatLite::TYPE_BOOL, bool>(level, leaf, o, o2);
-        } else if (tn == "string") {
-            dump_required<WireFormatLite::TYPE_STRING, string>(level, leaf, o, o2);
-        
-        // Int types
-        } else if (tn == "char") {
-            dump_required<WireFormatLite::TYPE_SINT32, char>(level, leaf, o, o2);
-        } else if (tn == "short") {
-            dump_required<WireFormatLite::TYPE_SINT32, short>(level, leaf, o, o2);
-        } else if (tn == "int") {
-            dump_required<WireFormatLite::TYPE_SINT32, int>(level, leaf, o, o2);
-        } else if (tn == "long") {
-            dump_required<WireFormatLite::TYPE_SINT32, long>(level, leaf, o, o2);
-        } else if (tn == "long long") {
-            dump_required<WireFormatLite::TYPE_SINT64, long long>(level, leaf, o, o2);
-        
-        // Unsigned Int types
-        } else if (tn == "unsigned char") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned char>(level, leaf, o, o2);
-        } else if (tn == "unsigned short") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned short>(level, leaf, o, o2);
-        } else if (tn == "unsigned int") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned int>(level, leaf, o, o2);
-        } else if (tn == "unsigned long") {
-            dump_required<WireFormatLite::TYPE_UINT32, unsigned long>(level, leaf, o, o2);
-        } else if (tn == "unsigned long long") {
-            dump_required<WireFormatLite::TYPE_UINT64, unsigned long long>(level, leaf, o, o2);
-            
-        // Doom.
-        } else {
-            cerr << "Unknown branch type: " << tn << endl;
-            assert(false);
-        }
+    // determine level and type name
+    int level = 0;
+    string tn = leaf.GetTypeName();
+    while (tn.substr(0,6) == "vector") {
+        level = level + 1;
+        tn = remove_vector(tn);
     }
-    meta_zstream.Close();
-    zstream.Close();
-    meta_fstream.Close();
-    fstream.Close();
-    close(fd);
+    
+    // Resolve ROOT's "Int_t", etc into plain C++ types
+    tn = TClassEdit::ResolveTypedef(tn.c_str(), true);
+
+    // The integer types could also be coded as INT32 or FIXED32 or SFIXED32
+    
+    // Float types
+    if (tn == "float") {
+        dump_required<WireFormatLite::TYPE_FLOAT, float>(level, leaf, o, o2);
+    } else if (tn == "double") {
+        dump_required<WireFormatLite::TYPE_DOUBLE, double>(level, leaf, o, o2);
+        
+    // Misc types
+    } else if (tn == "bool") {
+        dump_required<WireFormatLite::TYPE_BOOL, bool>(level, leaf, o, o2);
+    } else if (tn == "string") {
+        dump_required<WireFormatLite::TYPE_STRING, string>(level, leaf, o, o2);
+    
+    // Int types
+    } else if (tn == "char") {
+        dump_required<WireFormatLite::TYPE_SINT32, char>(level, leaf, o, o2);
+    } else if (tn == "short") {
+        dump_required<WireFormatLite::TYPE_SINT32, short>(level, leaf, o, o2);
+    } else if (tn == "int") {
+        dump_required<WireFormatLite::TYPE_SINT32, int>(level, leaf, o, o2);
+    } else if (tn == "long") {
+        dump_required<WireFormatLite::TYPE_SINT32, long>(level, leaf, o, o2);
+    } else if (tn == "long long") {
+        dump_required<WireFormatLite::TYPE_SINT64, long long>(level, leaf, o, o2);
+    
+    // Unsigned Int types
+    } else if (tn == "unsigned char") {
+        dump_required<WireFormatLite::TYPE_UINT32, unsigned char>(level, leaf, o, o2);
+    } else if (tn == "unsigned short") {
+        dump_required<WireFormatLite::TYPE_UINT32, unsigned short>(level, leaf, o, o2);
+    } else if (tn == "unsigned int") {
+        dump_required<WireFormatLite::TYPE_UINT32, unsigned int>(level, leaf, o, o2);
+    } else if (tn == "unsigned long") {
+        dump_required<WireFormatLite::TYPE_UINT32, unsigned long>(level, leaf, o, o2);
+    } else if (tn == "unsigned long long") {
+        dump_required<WireFormatLite::TYPE_UINT64, unsigned long long>(level, leaf, o, o2);
+        
+    // Doom.
+    } else {
+        cerr << "Unknown branch type: " << tn << endl;
+        assert(false);
+    }
+
+    ostream.Close();
 }
 
 void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {

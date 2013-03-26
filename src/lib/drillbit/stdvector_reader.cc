@@ -22,7 +22,7 @@ StdVectorReader* StdVectorReader::Make(MetaReader *s, CodedInputStream *d) {
     assert(s);
     assert(d);
     StdVectorReader *r;
-    switch(s->info().level()) {
+    switch(s->info().max_dl()) {
         case 0: r = MakePODReaderAutoType(s, d); break;
         case 1: r = MakeStdVectorReaderAutoType<1>(s, d); break;
         case 2: r = MakeStdVectorReaderAutoType<2>(s, d); break;

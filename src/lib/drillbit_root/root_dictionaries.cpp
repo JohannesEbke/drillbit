@@ -59,13 +59,13 @@ bool is_generated(const char * name) {
 }
 // Generate dictionaries required to read `tree`.
 void generate_dictionary(const char *class_name) {
-    init();
-    char *orig_dir = get_current_dir_name();
-    chdir(dictionary_tmpdir);
+    //init();
+    //char *orig_dir = get_current_dir_name();
+    //chdir(dictionary_tmpdir);
     std::cerr << "Generating dictionary for " << class_name << std::endl;
     gInterpreter->GenerateDictionary(class_name);
-    chdir(orig_dir);
-    free(static_cast<void*>(orig_dir));
+    //chdir(orig_dir);
+    //free(static_cast<void*>(orig_dir));
 }
 
 // Generate dictionaries required to read `tree`.

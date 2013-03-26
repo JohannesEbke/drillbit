@@ -25,10 +25,10 @@ DrillbitTree * DrillbitTree::FromArgs(int count, const char ** files) {
 
 DrillbitTree * DrillbitTree::Make(const std::vector<std::string> &files) {
     DrillbitTree * t = new DrillbitTree();
-    std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded = open_stripes(files);
+    std::vector<StripeInputStream> streams = open_stripes(files);
     for (int i = 0; i < files.size(); i++) {
-        MetaReader * sreader = MetaReader::Make(coded[i].first);
-        StdVectorReader * vreader = StdVectorReader::Make(sreader, coded[i].second);
+        MetaReader * sreader = MetaReader::Make(streams[i].meta);
+        StdVectorReader * vreader = StdVectorReader::Make(sreader, streams[i].data);
         t->_readers.push_back(vreader);
         t->_readers_map[sreader->info().root_name()] = vreader;
     }

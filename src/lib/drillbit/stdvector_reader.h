@@ -1,7 +1,7 @@
 #ifndef STDVECTOR_READER_H_
 #define STDVECTOR_READER_H_
 
-#include "drillbit.pb.h"
+#include "metadata.pb.h"
 #include "metadata_stream.h"
 #include "data_codec.h"
 

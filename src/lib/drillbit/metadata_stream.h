@@ -3,15 +3,14 @@
 
 #include <string>
 
-#include "drillbit.pb.h"
+#include "metadata.pb.h"
 
-namespace google { namespace protobuf { namespace io { class CodedInputStream; }; }; };
+namespace google { namespace protobuf { namespace io { 
+    class CodedInputStream; 
+    class CodedOutputStream;
+}; }; };
 using google::protobuf::io::CodedInputStream;
-
-// What needs to be done?
-// * read the meta data header
-// * decode wire into cpp type
-// * yield rl/dl/data triples
+using google::protobuf::io::CodedOutputStream;
 
 class MetaReader {
  public:
@@ -19,12 +18,26 @@ class MetaReader {
     // Get the Stripe information
     const StripeInfo& info() const { return _info; };
     // returns repetition and definition level of the next metadata line
-    template<typename T, int level> bool next_line(uint8_t &rl, uint8_t &dl);
+    bool next_rldl(uint8_t &rl, uint8_t &dl) __attribute__ ((always_inline)); // TODO: Check if this improves speed
  private:
     MetaReader() : _info(), _meta(NULL) {};
     StripeInfo _info;
     CodedInputStream *_meta;
-    int _field_type;
+    uint8_t _nbits_split, _max_dl;
+};
+
+class MetaWriter {
+ public:
+    MetaWriter() : _meta(NULL) {};
+    void start(CodedOutputStream *meta, const StripeInfo &info);
+    // Get the Stripe information
+    const StripeInfo& info() const { return _info; };
+    // write repetition and definition level of the next metadata line
+    void write_rldl(const uint8_t &rl, const uint8_t &dl)  __attribute__ ((always_inline)); // TODO: Check if this improves speed
+ private:
+    CodedOutputStream *_meta;
+    StripeInfo _info;
+    uint8_t _bits_split, _max_dl;
 };
 
 #endif

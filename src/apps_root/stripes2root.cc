@@ -18,7 +18,7 @@ using google::protobuf::io::CodedInputStream;
 TBranch* make_branch(StdVectorReader *reader, TTree *tree) {
     const StripeInfo &info = reader->metadata_stream()->info();
     ensure_dictionary(info.root_type().c_str());
-    uint32_t level = info.level();
+    uint32_t level = info.max_dl();
     // Create Branch
     if (level == 0) {
         // can be Int_t, UInt_t, Double_t, Float_t, Bool_t
@@ -43,7 +43,7 @@ TBranch* make_branch(StdVectorReader *reader, TTree *tree) {
 
 
 void compose_root_file(std::string name, const std::vector<std::string>& dit_files) {
-    std::vector<std::pair<CodedInputStream*,CodedInputStream*>> coded = open_stripes(dit_files);
+    std::vector<StripeInputStream> streams = open_stripes(dit_files);
 
     std::cerr << "Looking up column metadata and creating root tree..." << std::endl;
 
@@ -51,9 +51,9 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     TTree * tree = new TTree("composed", "Composed Tree");
 
     std::vector<StdVectorReader*> readers;
-    for (int i = 0; i < dit_files.size(); i++) {
-        MetaReader * sreader = MetaReader::Make(coded[i].first);
-        StdVectorReader * vreader = StdVectorReader::Make(sreader, coded[i].second);
+    for (int i = 0; i < streams.size(); i++) {
+        MetaReader * sreader = MetaReader::Make(streams[i].meta);
+        StdVectorReader * vreader = StdVectorReader::Make(sreader, streams[i].data);
         assert(make_branch(vreader, tree));
         readers.push_back(vreader);
     }

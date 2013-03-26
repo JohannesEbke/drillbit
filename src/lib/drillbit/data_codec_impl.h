@@ -55,9 +55,24 @@ typename TypeFromFieldType<type>::type DataDecoder<type>::Decode() {
     return tmp;
 }
 
+template<>
+void DataEncoder<WireFormatLite::TYPE_STRING>::Encode(const std::string *data, int size) {
+    for (int i = 0; i < size; i++) {
+        _sub_stream->WriteVarint32(data[i].size());
+        _sub_stream->WriteString(data[i]);
+    }
+}
+
+template<>
+void DataEncoder<WireFormatLite::TYPE_BYTES>::Encode(const std::string *data, int size) {
+    for (int i = 0; i < size; i++) {
+        _sub_stream->WriteVarint32(data[i].size());
+        _sub_stream->WriteString(data[i]);
+    }
+}
 
 template<WireFormatLite::FieldType type>
-bool DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type *data, int size) {
+void DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type *data, int size) {
     #define WRITE(cpptype, enumtype, wfunc) \
     case WireFormatLite::TYPE_ ## enumtype: \
         for (int i = 0; i < size; i++) { \
@@ -79,25 +94,14 @@ bool DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type *dat
         WRITE(float, FLOAT, Float);
         WRITE(double, DOUBLE, Double);
         WRITE(bool, BOOL, Bool);
-    #undef WRITE
-        case WireFormatLite::TYPE_STRING:
-        case WireFormatLite::TYPE_BYTES:
-            for (int i = 0; i < size; i++) {
-                _sub_stream->WriteVarint32(data[i].size());
-                _sub_stream->WriteString(data[i]);
-            }
-            break;
         default:
             assert(false);
-            break;
     }
-    return true;
-    return true;
 }
 
 template<WireFormatLite::FieldType type>
-bool DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type &data) {
-    return Encode(&data, 1);
+void DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type &data) {
+    Encode(&data, 1);
 }
 
 #endif
