@@ -193,7 +193,7 @@ class StripeOutputImplCompressed : public StripeOutputImpl {
 
         // Open meta file
         string mfn = fn + "m";
-        fd_meta = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+        fd_meta = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd_meta != -1);
         fstream_meta = new FileOutputStream(fd_meta);
         zstream_meta = new GzipOutputStream(fstream_meta, options);

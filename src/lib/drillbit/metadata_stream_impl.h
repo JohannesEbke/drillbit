@@ -16,15 +16,15 @@ using google::protobuf::internal::WireFormatLite;
 inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
     uint32_t tag;
     if (not _meta->ReadVarint32(&tag)) return false;
-    dl = tag % _nbits_split;
-    rl = tag / _nbits_split;
+    dl = tag % _nbits_modulo;
+    rl = tag / _nbits_modulo;
     assert(dl >= rl); // mandated by the anti-corruption authority
     return true;
 }
 
 inline void MetaWriter::write_rldl(const uint8_t &rl, const uint8_t &dl) {
     assert(dl >= rl); // mandated by the anti-corruption authority
-    _meta->WriteVarint32(rl << _bits_split | dl);
+    _meta->WriteVarint32((((uint32_t)rl) << _nbits) | (uint32_t)dl);
 }
 
 
