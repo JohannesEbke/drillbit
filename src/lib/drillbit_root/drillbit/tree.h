@@ -7,6 +7,7 @@
 #include <string>
 #include <map>
 #include <utility>
+#include <memory>
 
 class StdVectorReader;
 
@@ -21,6 +22,7 @@ class DrillbitTree : public TTree {
     std::vector<StdVectorReader*> _readers;
     std::map<std::string, StdVectorReader*> _readers_map;
     std::vector<std::pair<void*,std::pair<void*,Int_t>>> _tocopy;
+    std::vector<std::shared_ptr<StripeInputStream>> streams;
 };
 
 
