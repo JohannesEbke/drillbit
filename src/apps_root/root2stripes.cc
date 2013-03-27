@@ -271,9 +271,9 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     ensure_dictionary(&leaf);
 
     string fn = string(outdir) + "/" + leaf.GetName() + ".dit";
-    StripeOutputStream ostream = open_stripes_write(fn);
-    CodedOutputStream &o = *ostream.data;
-    CodedOutputStream &o2 = *ostream.meta;
+    std::shared_ptr<StripeOutputStream> ostream = open_stripes_write(fn);
+    CodedOutputStream &o = *ostream->data;
+    CodedOutputStream &o2 = *ostream->meta;
 
     // determine level and type name
     int level = 0;
@@ -329,8 +329,6 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
         cerr << "Unknown branch type: " << tn << endl;
         assert(false);
     }
-
-    ostream.Close();
 }
 
 void dump_tree(TTree *tree, const char *outdir, const vector<string> fnmatch_patterns, const vector<string> regexp_patterns) {

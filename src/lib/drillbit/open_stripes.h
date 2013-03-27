@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <memory>
 
 namespace google { namespace protobuf { namespace io {
     class CodedInputStream; 
@@ -15,21 +16,21 @@ using google::protobuf::io::CodedOutputStream;
 class StripeInputImpl;
 class StripeOutputImpl;
 
-struct StripeInputStream {
+class StripeInputStream {
+ public:
+    virtual ~StripeInputStream() {};
     CodedInputStream *meta;
     CodedInputStream *data;
-    StripeInputImpl *_impl;
-    void Close();
 };
 
-struct StripeOutputStream {
+class StripeOutputStream {
+ public:
+    virtual ~StripeOutputStream() {};
     CodedOutputStream *meta;
     CodedOutputStream *data;
-    StripeOutputImpl *_impl;
-    void Close();
 };
 
-std::vector<StripeInputStream> open_stripes(const std::vector<std::string>& dit_files);
-StripeOutputStream open_stripes_write(const std::string& dit_file);
+std::vector<std::shared_ptr<StripeInputStream>> open_stripes(const std::vector<std::string>& dit_files);
+std::shared_ptr<StripeOutputStream> open_stripes_write(const std::string& dit_file);
 
 #endif

@@ -9,7 +9,7 @@ using namespace std;
 using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
-std::vector<StripeInputStream> streams;
+std::vector<std::shared_ptr<StripeInputStream>> streams;
 std::vector<CodedInputStream*> metastreams;
 std::vector<MetaReader*> sreaders;
 std::vector<StdVectorReader*> readers;
@@ -18,12 +18,12 @@ void read_metadata(bool make_vstream) {
     for (int i = 0; i < streams.size(); i++) {
             // Get the info message from the top
         if (make_vstream) {
-            MetaReader * sreader = MetaReader::Make(streams[i].meta);
+            MetaReader * sreader = MetaReader::Make(streams[i]->meta);
             sreaders.push_back(sreader);
-            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], streams[i].data);
+            StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], streams[i]->data);
             readers.push_back(vreader);
         } else {
-            CodedInputStream *meta = streams[i].meta;
+            CodedInputStream *meta = streams[i]->meta;
             uint32_t size = 0;
             assert(meta->ReadVarint32(&size));
             auto limit = meta->PushLimit(size);
@@ -40,8 +40,8 @@ void stream_all() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i].meta->GetDirectBufferPointer(&buf, &size)) streams[i].meta->Skip(size);
-        while (streams[i].data->GetDirectBufferPointer(&buf, &size)) streams[i].data->Skip(size);
+        while (streams[i]->meta->GetDirectBufferPointer(&buf, &size)) streams[i]->meta->Skip(size);
+        while (streams[i]->data->GetDirectBufferPointer(&buf, &size)) streams[i]->data->Skip(size);
     }
 }
 
@@ -49,7 +49,7 @@ void stream_meta() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i].meta->GetDirectBufferPointer(&buf, &size)) streams[i].meta->Skip(size);
+        while (streams[i]->meta->GetDirectBufferPointer(&buf, &size)) streams[i]->meta->Skip(size);
     }
 }
 
@@ -57,7 +57,7 @@ void stream_data() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i].data->GetDirectBufferPointer(&buf, &size)) streams[i].data->Skip(size);
+        while (streams[i]->data->GetDirectBufferPointer(&buf, &size)) streams[i]->data->Skip(size);
     }
 }
 

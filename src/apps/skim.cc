@@ -13,10 +13,10 @@ using namespace std;
 using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
-std::vector<StripeInputStream> streams;
+std::vector<std::shared_ptr<StripeInputStream>> streams;
 std::vector<MetaReader*> metareaders;
 std::vector<CodedInputStream*> datastreams;
-StripeOutputStream outstripe;
+std::shared_ptr<StripeOutputStream> outstripe;
 
 void realskim(MetaReader* meta, CodedInputStream* data, double cut, class TypeFromFieldType<WireFormatLite::TYPE_STRING>) {
     assert(false);
@@ -38,9 +38,9 @@ void realskim(MetaReader* meta, CodedInputStream* data, double cut, class TypeFr
         DataDecoder<type> d;
         DataEncoder<type> e;
         d.connect(data);
-        e.connect(outstripe.data);
+        e.connect(outstripe->data);
         MetaWriter w;
-        w.start(outstripe.meta, info);
+        w.start(outstripe->meta, info);
         typename TypeFromFieldType<type>::type tmp;
         int x = 0;
         while(d.DecodeInto(tmp)) {
@@ -70,8 +70,8 @@ void skimall(double cut) {
 void read_metadata() {
     for (int i = 0; i < streams.size(); i++) {
         // Get the info message from the top
-        metareaders.push_back(MetaReader::Make(streams[i].meta));
-        datastreams.push_back(streams[i].data);
+        metareaders.push_back(MetaReader::Make(streams[i]->meta));
+        datastreams.push_back(streams[i]->data);
     }
 }
 
