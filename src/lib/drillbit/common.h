@@ -68,8 +68,12 @@ class TypeFromFieldType {
 template<enum WireFormatLite::FieldType type>
 class InvalidValueOf {
  public:
-     typedef typename TypeFromFieldType<type>::type T;
-     static constexpr T value() { return std::numeric_limits<T>::max(); };
+    // Return type is const char* for strings, since std::string cannot be constexpr
+    typedef typename std::conditional<
+            type == WireFormatLite::TYPE_STRING || type == WireFormatLite::TYPE_BYTES, const char*,
+            typename TypeFromFieldType<type>::type
+        >::type T;
+    static constexpr T value() { return std::numeric_limits<T>::max(); };
 };
 
 template<>
@@ -79,9 +83,9 @@ constexpr double InvalidValueOf<WireFormatLite::TYPE_DOUBLE>::value() { return s
 template<>
 constexpr bool InvalidValueOf<WireFormatLite::TYPE_BOOL>::value() { return false; }; // a bit too little information... :(
 template<>
-constexpr std::string InvalidValueOf<WireFormatLite::TYPE_STRING>::value() { return ""; }; // also not perfect.
+constexpr const char* InvalidValueOf<WireFormatLite::TYPE_STRING>::value() { return ""; }; // also not perfect.
 template<>
-constexpr std::string InvalidValueOf<WireFormatLite::TYPE_BYTES>::value() { return ""; }; // also not perfect.
+constexpr const char* InvalidValueOf<WireFormatLite::TYPE_BYTES>::value() { return ""; }; // also not perfect.
 
 // Macro to switch a dynamic type into a statically compiled type
 // Due to variadic macros, you can write any code on the right-hand side
