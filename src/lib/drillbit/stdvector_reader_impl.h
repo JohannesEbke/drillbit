@@ -7,7 +7,7 @@
 
 template<WireFormatLite::FieldType type>
 TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, CodedInputStream *d) {
-    assert(0 == sreader->info().max_dl());
+    assert(0 == sreader->info().max_rl());
     TypedPODReader<type>* reader = new TypedPODReader<type>();
     reader->_reader = sreader;
     reader->_decoder.connect(d);
@@ -16,15 +16,26 @@ TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, CodedInput
 
 template<WireFormatLite::FieldType type>
 bool TypedPODReader<type>::next() {
-    bool success;
-    _buf = _decoder.Decode(success);
-    return success;
+    if (_max_dl == 0) {
+        bool success;
+        _buf = _decoder.Decode(success);
+        return success;
+    } else {
+        uint8_t dl;
+        if (not _reader->next_dl(dl)) return false;
+        if (dl == _max_dl) {
+            _buf = _decoder.Decode();
+        } else {
+            _buf = InvalidValueOf<type>::value();
+        } // else - nested optional fields;
+        return true;
+    }
 }
 
-template<WireFormatLite::FieldType type, int level>
-TypedStdVectorReader<type,level>* TypedStdVectorReader<type,level>::Make(MetaReader *sreader, CodedInputStream *d) {
-    assert(level == sreader->info().max_dl());
-    TypedStdVectorReader<type,level>* reader = new TypedStdVectorReader<type,level>();
+template<WireFormatLite::FieldType type, int max_rl>
+TypedStdVectorReader<type,max_rl>* TypedStdVectorReader<type,max_rl>::Make(MetaReader *sreader, CodedInputStream *d) {
+    assert(max_rl == sreader->info().max_dl());
+    TypedStdVectorReader<type,max_rl>* reader = new TypedStdVectorReader<type,max_rl>();
     reader->_reader = sreader;
     reader->_decoder.connect(d);
     return reader;
@@ -32,7 +43,7 @@ TypedStdVectorReader<type,level>* TypedStdVectorReader<type,level>::Make(MetaRea
 
 template<typename T>
 void empty_vector(std::vector<T> &v, int rl, int dl, int d=1) {
-    assert(false); // An empty vector cannot have dl == level!
+    assert(false); // An empty vector cannot have dl == max_dl!
 }
 
 template<typename T, typename U>
@@ -45,28 +56,28 @@ inline void empty_vector(std::vector<std::vector<U>> &v, int rl, int dl, int d=1
     }
 }
 
-template<WireFormatLite::FieldType type, int level>
-void TypedStdVectorReader<type,level>::decode_into(std::vector<T> &v, int rl, int count, int d) {
-    if (level == 1) {
+template<WireFormatLite::FieldType type, int max_rl>
+void TypedStdVectorReader<type,max_rl>::decode_into(std::vector<T> &v, int rl, int count, int d) {
+    if (max_rl == 1) {
         assert(rl == 0);
         v.resize(count);
         for (int i = 0; i < count; i++) {
             v[i] = _decoder.Decode();
         }
     } else {
-        assert(d == level);
+        assert(d == max_rl);
         for (int i = 0; i < count; i++) {
             v[i] = _decoder.Decode();
         }
     }
 }
 
-template<WireFormatLite::FieldType type, int level>
+template<WireFormatLite::FieldType type, int max_rl>
 template<typename U>
-void TypedStdVectorReader<type,level>::decode_into(std::vector<std::vector<U>> &v, int rl, int count, int d) {
+void TypedStdVectorReader<type,max_rl>::decode_into(std::vector<std::vector<U>> &v, int rl, int count, int d) {
     if (d < rl) {
         decode_into(v.back(), rl, count, d+1);
-    } else if (d+1 == level) {
+    } else if (d+1 == max_rl) {
         v.emplace_back(count);
         decode_into(v.back(), rl, count, d+1);
     } else {
@@ -75,9 +86,9 @@ void TypedStdVectorReader<type,level>::decode_into(std::vector<std::vector<U>> &
     }
 }
 
-template<WireFormatLite::FieldType type, int level>
-bool TypedStdVectorReader<type,level>::next() {
-    if (level > 1) _vbuf.clear();
+template<WireFormatLite::FieldType type, int max_rl>
+bool TypedStdVectorReader<type,max_rl>::next() {
+    if (max_rl > 1) _vbuf.clear();
     unsigned int n_elements = 0;
     uint8_t last_rl = 0;
     
@@ -88,10 +99,10 @@ bool TypedStdVectorReader<type,level>::next() {
     // if the event is empty, read the next tag and return
     if (_dl == 0 and _rl == 0) {
         if (not _reader->next_rldl(_rl, _dl)) _dl = UINT8_MAX;
-        if (level == 1) _vbuf.clear();
+        if (max_rl == 1) _vbuf.clear();
         return true;
     } else if (_rl == 0) {
-        if (_dl == level) {
+        if (_dl == max_rl) {
             n_elements++;
             last_rl = _rl;
         } else {
@@ -113,13 +124,13 @@ bool TypedStdVectorReader<type,level>::next() {
             if (n_elements > 0) decode_into(_vbuf, last_rl, n_elements);
             return true;
         } else {
-            if (_rl != level) { 
+            if (_rl != max_rl) { 
                 // skipped to a new "leaf" vector, so flush.
                 if (n_elements > 0) decode_into(_vbuf, last_rl, n_elements);
                 n_elements = 0;
                 last_rl = _rl;
             }
-            if (_dl == level) {
+            if (_dl == max_rl) {
                 // new entry in a "leaf" vector
                 n_elements++;
             } else {

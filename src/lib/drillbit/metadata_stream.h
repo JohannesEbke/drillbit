@@ -19,6 +19,7 @@ class MetaReader {
     const StripeInfo& info() const { return _info; };
     // returns repetition and definition level of the next metadata line
     bool next_rldl(uint8_t &rl, uint8_t &dl) __attribute__ ((always_inline)); // TODO: Check if this improves speed
+    bool next_dl(uint8_t &dl) __attribute__ ((always_inline));
  private:
     MetaReader() : _info(), _meta(NULL) {};
     StripeInfo _info;

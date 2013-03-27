@@ -18,9 +18,10 @@ class StdVectorReader {
     StdVectorReader() : _buffer(NULL), _reader(NULL) {};
     void * _buffer;
     MetaReader *_reader;
+    uint8_t _max_dl;
 };
 
-// Plain-Old-Data reader for level==0 fields
+// Plain-Old-Data reader for max_rl==0 fields
 template<WireFormatLite::FieldType type>
 class TypedPODReader : public StdVectorReader {
  public:
@@ -34,14 +35,14 @@ class TypedPODReader : public StdVectorReader {
 };
 
 // The fully templated typed StdVector reader
-template<WireFormatLite::FieldType type, int level>
+template<WireFormatLite::FieldType type, int max_rl>
 class TypedStdVectorReader : public StdVectorReader {
  public:
-    static_assert(level >= 1 and level <= 4, "The level is too damn high!");
+    static_assert(max_rl >= 1 and max_rl <= 4, "The repetition level is too damn high!");
     typedef typename TypeFromFieldType<type>::type T;
     // Create a typedef that contains the required std::vector
-    typedef typename NestedVector<T,level>::type vT;
-    static TypedStdVectorReader<type,level>* Make(MetaReader *sreader, CodedInputStream *d);
+    typedef typename NestedVector<T,max_rl>::type vT;
+    static TypedStdVectorReader<type,max_rl>* Make(MetaReader *sreader, CodedInputStream *d);
     bool next();
     const vT& data() const { return _vbuf; };
  private:

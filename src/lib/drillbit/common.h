@@ -2,6 +2,7 @@
 #define DRILLBIT_COMMON_H_
 
 #include <vector>
+#include <limits>
 
 #include <google/protobuf/wire_format_lite.h>
 using google::protobuf::internal::WireFormatLite;
@@ -62,6 +63,25 @@ class TypeFromFieldType {
     void* 
     >::type>::type>::type>::type>::type>::type>::type>::type>::type type;
 };
+
+
+template<enum WireFormatLite::FieldType type>
+class InvalidValueOf {
+ public:
+     typedef typename TypeFromFieldType<type>::type T;
+     static constexpr T value() { return std::numeric_limits<T>::max(); };
+};
+
+template<>
+constexpr float InvalidValueOf<WireFormatLite::TYPE_FLOAT>::value() { return std::numeric_limits<float>::signaling_NaN(); };
+template<>
+constexpr double InvalidValueOf<WireFormatLite::TYPE_DOUBLE>::value() { return std::numeric_limits<double>::signaling_NaN(); };
+template<>
+constexpr bool InvalidValueOf<WireFormatLite::TYPE_BOOL>::value() { return false; }; // a bit too little information... :(
+template<>
+constexpr std::string InvalidValueOf<WireFormatLite::TYPE_STRING>::value() { return ""; }; // also not perfect.
+template<>
+constexpr std::string InvalidValueOf<WireFormatLite::TYPE_BYTES>::value() { return ""; }; // also not perfect.
 
 // Macro to switch a dynamic type into a statically compiled type
 // Due to variadic macros, you can write any code on the right-hand side
