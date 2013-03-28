@@ -19,14 +19,19 @@ inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
         if (not _meta->Next((const void**)&_buffer, &size)) return false;
         _buffer_end = _buffer + size;
     }
+    // Extract the right four bytes (dl) and the left four bytes (rl)
+    // from the buffer and advance the buffer pointer.
     dl = *_buffer & 0x0F;
     rl = *_buffer >> 4;
     _buffer++;
     return true;
 }
 
+// Optimized function in case the maximum repetition level is zero
 inline bool MetaReader::next_dl(uint8_t &dl) {
     if (GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
+        // Interpret the current buffer byte only as definition level
+        // Assumes that the repetition level is fixed at zero!
         dl = *_buffer;
         _buffer++;
         return true;
