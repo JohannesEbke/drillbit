@@ -19,8 +19,7 @@ inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
         if (not _meta->Next((const void**)&_buffer, &size)) return false;
         _buffer_end = _buffer + size;
     }
-    // Extract the right four bytes (dl) and the left four bytes (rl)
-    // from the buffer and advance the buffer pointer.
+    // *buffer contains rl and dl packed into one byte (see write_rldl)
     dl = *_buffer & 0x0F;
     rl = *_buffer >> 4;
     _buffer++;
@@ -28,10 +27,9 @@ inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
 }
 
 // Optimized function in case the maximum repetition level is zero
+// Assumes without checking that the buffer bytes have RL zero!
 inline bool MetaReader::next_dl(uint8_t &dl) {
     if (GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
-        // Interpret the current buffer byte only as definition level
-        // Assumes that the repetition level is fixed at zero!
         dl = *_buffer;
         _buffer++;
         return true;
@@ -48,6 +46,7 @@ inline void MetaWriter::write_rldl(const uint8_t &rl, const uint8_t &dl) {
         assert(_meta->Next((void**)&_buffer, &size));
         _buffer_end = _buffer + size;
     }
+    // pack rl/dl into one byte
     *_buffer = rl << 4 | dl;
     _buffer++;
 }
