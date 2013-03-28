@@ -11,9 +11,8 @@
 
 using google::protobuf::internal::WireFormatLite;
 
-// returns repetition and definition level of the next metadata line
-// if the definition level is equal to the maximum possible, the 
-// corresponding data is written to buffer, which is otherwise untouched.
+// Returns repetition and definition level of the next metadata line
+// This function is one of the performance-critical parts.
 inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
     if (not GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
         int size;
