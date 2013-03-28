@@ -4,13 +4,15 @@
 #include "open_stripes.h"
 #include "stdvector_reader.h"
 
+#include <google/protobuf/io/zero_copy_stream.h>
+
 using namespace std;
 
 using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
 std::vector<std::shared_ptr<StripeInputStream>> streams;
-std::vector<CodedInputStream*> metastreams;
+std::vector<ZeroCopyInputStream*> metastreams;
 std::vector<MetaReader*> sreaders;
 std::vector<StdVectorReader*> readers;
 
@@ -23,15 +25,16 @@ void read_metadata(bool make_vstream) {
             StdVectorReader * vreader = StdVectorReader::Make(sreaders[i], streams[i]->data);
             readers.push_back(vreader);
         } else {
-            CodedInputStream *meta = streams[i]->meta;
+            ZeroCopyInputStream *_meta = streams[i]->meta;
+            CodedInputStream meta(_meta);
             uint32_t size = 0;
-            assert(meta->ReadVarint32(&size));
-            auto limit = meta->PushLimit(size);
+            assert(meta.ReadVarint32(&size));
+            auto limit = meta.PushLimit(size);
             StripeInfo info;
-            assert(info.ParseFromCodedStream(meta));
-            meta->PopLimit(limit);
+            assert(info.ParseFromCodedStream(&meta));
+            meta.PopLimit(limit);
             assert(info.stripe_version() <= 2);
-            metastreams.push_back(meta);
+            metastreams.push_back(_meta);
         }
     }
 }
@@ -40,7 +43,7 @@ void stream_all() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i]->meta->GetDirectBufferPointer(&buf, &size)) streams[i]->meta->Skip(size);
+        while (streams[i]->meta->Next(&buf, &size));
         while (streams[i]->data->GetDirectBufferPointer(&buf, &size)) streams[i]->data->Skip(size);
     }
 }
@@ -49,7 +52,7 @@ void stream_meta() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i]->meta->GetDirectBufferPointer(&buf, &size)) streams[i]->meta->Skip(size);
+        while (streams[i]->meta->Next(&buf, &size));
     }
 }
 
@@ -64,7 +67,8 @@ void stream_data() {
 void decode_meta() {
     for (int i = 0; i < metastreams.size(); i++) {
         uint32_t tag;
-        while(metastreams[i]->ReadVarint32(&tag));
+        CodedInputStream meta(metastreams[i]);
+        while(meta.ReadVarint32(&tag));
     }
 }
 

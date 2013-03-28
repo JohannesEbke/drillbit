@@ -17,10 +17,12 @@
 using google::protobuf::io::FileInputStream;
 using google::protobuf::io::ArrayInputStream;
 using zerocc::GzipInputStream;
+using google::protobuf::io::ZeroCopyInputStream;
 using google::protobuf::io::CodedInputStream;
 
 using google::protobuf::io::FileOutputStream;
 using zerocc::GzipOutputStream;
+using google::protobuf::io::ZeroCopyOutputStream;
 using google::protobuf::io::CodedOutputStream;
 
 using std::pair;
@@ -90,7 +92,8 @@ pair<void*, size_t> copy_file_decomp(string fn) {
 class StripeInputImplCompressedCopy : public StripeInputStream {
  public:
     StripeInputImplCompressedCopy() {
-        meta = data = NULL;
+        meta = NULL;
+        data = NULL;
     };
 
     void init(const std::string &dit_file) {
@@ -101,17 +104,16 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
         zd = new GzipInputStream(id);
         zm = new GzipInputStream(im);
         data = new CodedInputStream(zd);
-        meta = new CodedInputStream(zm);
+        meta = zm;
         assert(data);
         assert(meta);
         data->SetTotalBytesLimit(1024*1024*1024, 1024*1024*1024);
-        meta->SetTotalBytesLimit(1024*1024*1024, 1024*1024*1024);
     }
 
     virtual ~StripeInputImplCompressedCopy() {
         if (meta == NULL) return;
         // delete in reverse order
-        delete data; delete meta;
+        delete data; // delete meta;
         delete zd; delete zm;
         delete id; delete im;
         free(dit.first);
@@ -153,7 +155,8 @@ vector<std::shared_ptr<StripeInputStream>> open_stripes(const vector<string>& di
 class StripeOutputImplCompressed : public StripeOutputStream {
  public:
     StripeOutputImplCompressed() {
-        meta = data = NULL;
+        meta = NULL;
+        data = NULL;
     }; // for checking
 
     StripeOutputStream init(std::string fn) {
@@ -175,7 +178,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         assert(fd_meta != -1);
         fstream_meta = new FileOutputStream(fd_meta);
         zstream_meta = new GzipOutputStream(fstream_meta, options);
-        meta = new CodedOutputStream(zstream_meta);
+        meta = zstream_meta;
 
         assert(meta);
         assert(data);
@@ -184,7 +187,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
     virtual ~StripeOutputImplCompressed() {
         if (meta == NULL) return;
         delete data;
-        delete meta;
+        //delete meta;
         assert(zstream_meta->Close());
         assert(zstream_data->Close());
         delete zstream_data;

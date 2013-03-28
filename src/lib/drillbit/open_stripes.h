@@ -9,9 +9,14 @@
 namespace google { namespace protobuf { namespace io {
     class CodedInputStream; 
     class CodedOutputStream; 
+    class ZeroCopyInputStream;
+    class ZeroCopyOutputStream;
 }; }; };
+
 using google::protobuf::io::CodedInputStream;
 using google::protobuf::io::CodedOutputStream;
+using google::protobuf::io::ZeroCopyInputStream;
+using google::protobuf::io::ZeroCopyOutputStream;
 
 class StripeInputImpl;
 class StripeOutputImpl;
@@ -19,14 +24,14 @@ class StripeOutputImpl;
 class StripeInputStream {
  public:
     virtual ~StripeInputStream() {};
-    CodedInputStream *meta;
+    ZeroCopyInputStream *meta;
     CodedInputStream *data;
 };
 
 class StripeOutputStream {
  public:
     virtual ~StripeOutputStream() {};
-    CodedOutputStream *meta;
+    ZeroCopyOutputStream *meta;
     CodedOutputStream *data;
 };
 

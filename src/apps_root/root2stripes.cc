@@ -236,7 +236,7 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, CodedOutputStream &o2) {
+void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, ZeroCopyOutputStream &o2) {
     StripeInfo info;
     info.set_stripe_version(2);
     info.set_field_type(SpecifiedFieldType);
@@ -273,7 +273,7 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     string fn = string(outdir) + "/" + leaf.GetName() + ".dit";
     std::shared_ptr<StripeOutputStream> ostream = open_stripes_write(fn);
     CodedOutputStream &o = *ostream->data;
-    CodedOutputStream &o2 = *ostream->meta;
+    ZeroCopyOutputStream &o2 = *ostream->meta;
 
     // determine level and type name
     int level = 0;

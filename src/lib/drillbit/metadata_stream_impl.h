@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 
+#include <google/protobuf/io/zero_copy_stream.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/wire_format_lite.h>
 #include <google/protobuf/wire_format_lite_inl.h>
@@ -13,51 +14,40 @@ using google::protobuf::internal::WireFormatLite;
 // returns repetition and definition level of the next metadata line
 // if the definition level is equal to the maximum possible, the 
 // corresponding data is written to buffer, which is otherwise untouched.
-inline bool MetaReader::next_rldl(uint8_t &_rl, uint8_t &_dl) {
-    const void * data;
-    int size;
-    _meta->GetDirectBufferPointerInline(&data, &size);
-    if (GOOGLE_PREDICT_TRUE(size != 0)) {
-        _dl = ((const uint8_t*)data)[0] & 0x0F;
-        _rl = ((const uint8_t*)data)[0] >> 4;
-        _meta->Skip(1);
-        return true;
+inline bool MetaReader::next_rldl(uint8_t &rl, uint8_t &dl) {
+    if (not GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
+        int size;
+        if (not _meta->Next((const void**)&_buffer, &size)) return false;
+        _buffer_end = _buffer + size;
     }
-    if (not _meta->GetDirectBufferPointer(&data, &size)) return false;
-    _dl = ((const uint8_t*)data)[0] & 0x0F;
-    _rl = ((const uint8_t*)data)[0] >> 4;
-    _meta->Skip(1);
+    dl = *_buffer & 0x0F;
+    rl = *_buffer >> 4;
+    _buffer++;
     return true;
 }
 
-inline bool MetaReader::next_dl(uint8_t &_dl) {
-    const void * data;
-    int size;
-    _meta->GetDirectBufferPointerInline(&data, &size);
-    if (GOOGLE_PREDICT_TRUE(size != 0)) {
-        _dl = ((const uint8_t*)data)[0];
-        _meta->Skip(1);
+inline bool MetaReader::next_dl(uint8_t &dl) {
+    if (GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
+        dl = *_buffer;
+        _buffer++;
         return true;
+    } else {
+        uint8_t rl;
+        return next_rldl(rl, dl);
     }
-    if (not _meta->GetDirectBufferPointer(&data, &size)) return false;
-    _dl = ((const uint8_t*)data)[0];
-    _meta->Skip(1);
-    return true;
 }
 
-inline void MetaWriter::write_rldl(const uint8_t &_rl, const uint8_t &_dl) {
-    assert(_dl >= _rl); // mandated by the anti-corruption authority
-    uint8_t * buf = _meta->GetDirectBufferForNBytesAndAdvance(1);
-    if (GOOGLE_PREDICT_TRUE(buf != NULL)) {
-        *buf = _rl << 4 | _dl;
-        return;
+inline void MetaWriter::write_rldl(const uint8_t &rl, const uint8_t &dl) {
+    assert(dl >= rl); // mandated by the anti-corruption authority
+    if (not GOOGLE_PREDICT_TRUE(_buffer != _buffer_end)) {
+        int size;
+        assert(_meta->Next((void**)&_buffer, &size));
+        _buffer_end = _buffer + size;
     }
-    int size;
-    assert(_meta->GetDirectBufferPointer((void**)&buf, &size));
-    *buf = _rl << 4 | _dl;
-    _meta->Skip(1);
-    return;
+    *_buffer = rl << 4 | dl;
+    _buffer++;
 }
+
 
 
 #endif
