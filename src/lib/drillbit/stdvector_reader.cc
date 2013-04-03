@@ -2,7 +2,7 @@
 #include "stdvector_reader_impl.h"
 
 template<int max_rl>
-StdVectorReader* MakeStdVectorReaderAutoType(MetaReader *s, CodedInputStream *d) {
+StdVectorReader* MakeStdVectorReaderAutoType(MetaReader *s, ZeroCopyInputStream *d) {
     // Note: The first next() for a vector type is just for initialization
     // No data will be read since the previous rl/dl is at 0/0.
     SWITCH_TYPE_TO_CONST(s->info().field_type(), 
@@ -13,12 +13,12 @@ StdVectorReader* MakeStdVectorReaderAutoType(MetaReader *s, CodedInputStream *d)
     assert(false);
 }
 
-StdVectorReader* MakePODReaderAutoType(MetaReader *s, CodedInputStream *d) {
+StdVectorReader* MakePODReaderAutoType(MetaReader *s, ZeroCopyInputStream *d) {
     SWITCH_TYPE_TO_CONST(s->info().field_type(), return TypedPODReader<type>::Make(s, d));
     assert(false);
 }
 
-StdVectorReader* StdVectorReader::Make(MetaReader *s, CodedInputStream *d) {
+StdVectorReader* StdVectorReader::Make(MetaReader *s, ZeroCopyInputStream *d) {
     assert(s);
     assert(d);
     StdVectorReader *r;

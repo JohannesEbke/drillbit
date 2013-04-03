@@ -10,6 +10,7 @@
 #include <memory>
 
 class StdVectorReader;
+class StripeInputStream;
 
 class DrillbitTree : public TTree {
  public:

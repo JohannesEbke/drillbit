@@ -41,7 +41,7 @@
 
 using google::protobuf::io::FileOutputStream;
 using google::protobuf::io::GzipOutputStream;
-using google::protobuf::io::CodedOutputStream;
+using google::protobuf::io::ZeroCopyOutputStream;
 using google::protobuf::FieldDescriptor;
 using google::protobuf::internal::WireFormatLite;
 
@@ -62,7 +62,7 @@ string remove_vector(string type) {
 }
 
 /*template <enum WireFormatLite::FieldType SpecifiedFieldType, int maxlevel, int level, typename T>
-void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutputStream *o2) {
+void RecursiveDump(T data, int repetition_level, ZeroCopyOutputStream *o, CodedOutputStream *o2) {
     const int DL = 1; // definition level multiplier
     const int RL = (maxlevel == 1) ? 2 : 4; // repetition level multiplier
     for (int l = 0; l < data.size(); l++) {
@@ -77,7 +77,7 @@ void RecursiveDump(T data, int repetition_level, CodedOutputStream *o, CodedOutp
 }*/
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o, MetaWriter& meta) {
+void dump_required_lvl0(TLeaf &leaf, ZeroCopyOutputStream &o, MetaWriter& meta) {
     if (verbose) cerr << "Dump " << leaf.GetName() << endl;
     auto *branch = leaf.GetBranch();
 
@@ -95,7 +95,7 @@ void dump_required_lvl0(TLeaf &leaf, CodedOutputStream &o, MetaWriter& meta) {
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
+void dump_required_lvl1_array(TLeaf &leaf, ZeroCopyOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     
@@ -125,7 +125,7 @@ void dump_required_lvl1_array(TLeaf &leaf, CodedOutputStream &o, MetaWriter &met
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
+void dump_required_lvl1(TLeaf &leaf, ZeroCopyOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 2; // repetition level multiplier
     if (verbose) cerr << "Dump vector: " << leaf.GetName() << " " << leaf.GetTypeName() << endl;
@@ -154,7 +154,7 @@ void dump_required_lvl1(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
+void dump_required_lvl2(TLeaf &leaf, ZeroCopyOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -192,7 +192,7 @@ void dump_required_lvl2(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
 
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
+void dump_required_lvl3(TLeaf &leaf, ZeroCopyOutputStream &o, MetaWriter &meta) {
     const int DL = 1; // definition level multiplier
     const int RL = 4; // repetition level multiplier
 
@@ -236,7 +236,7 @@ void dump_required_lvl3(TLeaf &leaf, CodedOutputStream &o, MetaWriter &meta) {
 }
 
 template <enum WireFormatLite::FieldType SpecifiedFieldType, typename T>
-void dump_required(int level, TLeaf &leaf, CodedOutputStream &o, ZeroCopyOutputStream &o2) {
+void dump_required(int level, TLeaf &leaf, ZeroCopyOutputStream &o, ZeroCopyOutputStream &o2) {
     StripeInfo info;
     info.set_stripe_version(2);
     info.set_field_type(SpecifiedFieldType);
@@ -271,8 +271,8 @@ void dump_leaf(const char *outdir, TLeaf &leaf, TTree *tree) {
     ensure_dictionary(&leaf);
 
     string fn = string(outdir) + "/" + leaf.GetName() + ".dit";
-    std::shared_ptr<StripeOutputStream> ostream = open_stripes_write(fn);
-    CodedOutputStream &o = *ostream->data;
+    std::shared_ptr<StripeOutputStream> ostream = open_stripe_write(fn);
+    ZeroCopyOutputStream &o = *ostream->data;
     ZeroCopyOutputStream &o2 = *ostream->meta;
 
     // determine level and type name

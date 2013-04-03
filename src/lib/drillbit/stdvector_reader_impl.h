@@ -6,7 +6,7 @@
 #include "metadata_stream_impl.h"
 
 template<WireFormatLite::FieldType type>
-TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, CodedInputStream *d) {
+TypedPODReader<type>* TypedPODReader<type>::Make(MetaReader *sreader, ZeroCopyInputStream *d) {
     assert(0 == sreader->info().max_rl());
     TypedPODReader<type>* reader = new TypedPODReader<type>();
     reader->_reader = sreader;
@@ -33,7 +33,7 @@ bool TypedPODReader<type>::next() {
 }
 
 template<WireFormatLite::FieldType type, int max_rl>
-TypedStdVectorReader<type,max_rl>* TypedStdVectorReader<type,max_rl>::Make(MetaReader *sreader, CodedInputStream *d) {
+TypedStdVectorReader<type,max_rl>* TypedStdVectorReader<type,max_rl>::Make(MetaReader *sreader, ZeroCopyInputStream *d) {
     assert(max_rl == sreader->info().max_dl());
     TypedStdVectorReader<type,max_rl>* reader = new TypedStdVectorReader<type,max_rl>();
     reader->_reader = sreader;

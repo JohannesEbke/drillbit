@@ -9,7 +9,7 @@ using namespace std;
 using google::protobuf::io::CodedInputStream;
 
 void just_read_stripes(const std::vector<std::string>& dit_files) {
-    std::vector<std::shared_ptr<StripeInputStream>> streams = open_stripes(dit_files);
+    std::vector<StripeInputStreamPtr> streams = open_stripes_read(dit_files);
 
     std::vector<StdVectorReader*> readers;
     for (int i = 0; i < dit_files.size(); i++) {

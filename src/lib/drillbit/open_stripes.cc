@@ -92,6 +92,7 @@ pair<void*, size_t> copy_file_decomp(string fn) {
 class StripeInputImplCompressedCopy : public StripeInputStream {
  public:
     StripeInputImplCompressedCopy() {
+        zd = NULL; // for check in destructor
         meta = NULL;
         data = NULL;
     };
@@ -103,17 +104,16 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
         im = new ArrayInputStream(ditm.first, ditm.second);
         zd = new GzipInputStream(id);
         zm = new GzipInputStream(im);
-        data = new CodedInputStream(zd);
+        data = zd;
         meta = zm;
         assert(data);
         assert(meta);
-        data->SetTotalBytesLimit(1024*1024*1024, 1024*1024*1024);
+
     }
 
     virtual ~StripeInputImplCompressedCopy() {
-        if (meta == NULL) return;
+        if (zd == NULL) return;
         // delete in reverse order
-        delete data; // delete meta;
         delete zd; delete zm;
         delete id; delete im;
         free(dit.first);
@@ -126,27 +126,19 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
 };
 
 
-vector<std::shared_ptr<StripeInputStream>> open_stripes(const vector<string>& dit_files) {
-    vector<std::shared_ptr<StripeInputStream>> streams;
+StripeInputStreamPtr open_stripe_read(const string& dit_file) {
 #if 1 // this version seems to perform better for my work machine and the big laptop
-    std::cerr << "Loading column data..." << std::endl;
-    for (int i = 0; i < dit_files.size(); i++) {
-        auto x = new StripeInputImplCompressedCopy();
-        x->init(dit_files[i]);
-        streams.push_back(std::shared_ptr<StripeInputImplCompressedCopy>(x));
-    }
-    return streams;
+    auto x = new StripeInputImplCompressedCopy();
+    x->init(dit_file);
+    return std::shared_ptr<StripeInputImplCompressedCopy>(x);
 #else // .. but this one is better on the netbook (but takes more memory)
-    std::cerr << "Loading and decompressing column data..." << std::endl;
-    for (int i = 0; i < dit_files.size(); i++) {
-        dit.push_back(copy_file_decomp(dit_files[i]));
-        ditm.push_back(copy_file_decomp(dit_files[i]+"m"));
-        id.push_back(new ArrayInputStream(dit[i].first, dit[i].second));
-        im.push_back(new ArrayInputStream(ditm[i].first, ditm[i].second));
-        CodedInputStream* dd = new CodedInputStream(id[i]);
-        CodedInputStream* dm = new CodedInputStream(im[i]);
-        coded.push_back(make_pair(dm, dd));
-    }
+    dit.push_back(copy_file_decomp(dit_files[i]));
+    ditm.push_back(copy_file_decomp(dit_files[i]+"m"));
+    id.push_back(new ArrayInputStream(dit[i].first, dit[i].second));
+    im.push_back(new ArrayInputStream(ditm[i].first, ditm[i].second));
+    CodedInputStream* dd = new CodedInputStream(id[i]);
+    CodedInputStream* dm = new CodedInputStream(im[i]);
+    coded.push_back(make_pair(dm, dd));
 #endif
 }
 
@@ -155,9 +147,10 @@ vector<std::shared_ptr<StripeInputStream>> open_stripes(const vector<string>& di
 class StripeOutputImplCompressed : public StripeOutputStream {
  public:
     StripeOutputImplCompressed() {
+        zstream_meta = NULL; // only for the check in the destructor 
         meta = NULL;
         data = NULL;
-    }; // for checking
+    };
 
     StripeOutputStream init(std::string fn) {
         this->fn = fn;
@@ -170,7 +163,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         assert(fd_data != -1);
         fstream_data = new FileOutputStream(fd_data);
         zstream_data = new GzipOutputStream(fstream_data, options);
-        data = new CodedOutputStream(zstream_data);
+        data = zstream_data;
 
         // Open meta file
         string mfn = fn + "m";
@@ -185,9 +178,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
     }
 
     virtual ~StripeOutputImplCompressed() {
-        if (meta == NULL) return;
-        delete data;
-        //delete meta;
+        if (zstream_meta == NULL) return;
         assert(zstream_meta->Close());
         assert(zstream_data->Close());
         delete zstream_data;
@@ -207,7 +198,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
     GzipOutputStream *zstream_data, *zstream_meta;
 };
 
-std::shared_ptr<StripeOutputStream> open_stripes_write(const string& dit_file) {
+std::shared_ptr<StripeOutputStream> open_stripe_write(const string& dit_file) {
     auto x = new StripeOutputImplCompressed();
     x->init(dit_file);
     return std::shared_ptr<StripeOutputImplCompressed>(x);

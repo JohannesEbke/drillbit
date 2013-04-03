@@ -8,7 +8,7 @@
 // An untemplated interface to a stdvectorreader with some common variables
 class StdVectorReader {
  public:
-    static StdVectorReader* Make(MetaReader *s, CodedInputStream *d); // Will return an instance of a typed reader
+    static StdVectorReader* Make(MetaReader *s, ZeroCopyInputStream *d); // Will return an instance of a typed reader
 
     virtual bool next() = 0;
     void * buffer() { return _buffer; }
@@ -26,7 +26,7 @@ template<WireFormatLite::FieldType type>
 class TypedPODReader : public StdVectorReader {
  public:
     typedef typename TypeFromFieldType<type>::type T;
-    static TypedPODReader<type>* Make(MetaReader *sreader, CodedInputStream *d);
+    static TypedPODReader<type>* Make(MetaReader *sreader, ZeroCopyInputStream *d);
     bool next();
  private:
     T _buf;
@@ -42,7 +42,7 @@ class TypedStdVectorReader : public StdVectorReader {
     typedef typename TypeFromFieldType<type>::type T;
     // Create a typedef that contains the required std::vector
     typedef typename NestedVector<T,max_rl>::type vT;
-    static TypedStdVectorReader<type,max_rl>* Make(MetaReader *sreader, CodedInputStream *d);
+    static TypedStdVectorReader<type,max_rl>* Make(MetaReader *sreader, ZeroCopyInputStream *d);
     bool next();
     const vT& data() const { return _vbuf; };
  private:

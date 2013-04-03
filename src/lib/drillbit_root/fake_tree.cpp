@@ -1,10 +1,11 @@
 #include <iostream>
 #include <vector>
 
+#include "drillbit/tree.h"
+
 #include "open_stripes.h"
 #include "root_dictionaries.h"
 #include "stdvector_reader.h"
-#include "drillbit/tree.h"
 
 #include <TTree.h>
 #include <TDataType.h>
@@ -25,7 +26,7 @@ DrillbitTree * DrillbitTree::FromArgs(int count, const char ** files) {
 
 DrillbitTree * DrillbitTree::Make(const std::vector<std::string> &files) {
     DrillbitTree * t = new DrillbitTree();
-    t->streams = open_stripes(files);
+    t->streams = open_stripes_read(files);
     for (int i = 0; i < files.size(); i++) {
         MetaReader * sreader = MetaReader::Make(t->streams[i]->meta);
         StdVectorReader * vreader = StdVectorReader::Make(sreader, t->streams[i]->data);

@@ -3,39 +3,45 @@
 
 #include <vector>
 #include <string>
-#include <utility>
 #include <memory>
 
 namespace google { namespace protobuf { namespace io {
-    class CodedInputStream; 
-    class CodedOutputStream; 
     class ZeroCopyInputStream;
     class ZeroCopyOutputStream;
 }; }; };
-
-using google::protobuf::io::CodedInputStream;
-using google::protobuf::io::CodedOutputStream;
 using google::protobuf::io::ZeroCopyInputStream;
 using google::protobuf::io::ZeroCopyOutputStream;
-
-class StripeInputImpl;
-class StripeOutputImpl;
 
 class StripeInputStream {
  public:
     virtual ~StripeInputStream() {};
     ZeroCopyInputStream *meta;
-    CodedInputStream *data;
+    ZeroCopyInputStream *data;
 };
 
 class StripeOutputStream {
  public:
     virtual ~StripeOutputStream() {};
     ZeroCopyOutputStream *meta;
-    CodedOutputStream *data;
+    ZeroCopyOutputStream *data;
 };
 
-std::vector<std::shared_ptr<StripeInputStream>> open_stripes(const std::vector<std::string>& dit_files);
-std::shared_ptr<StripeOutputStream> open_stripes_write(const std::string& dit_file);
+typedef std::shared_ptr<StripeInputStream> StripeInputStreamPtr;
+typedef std::shared_ptr<StripeOutputStream> StripeOutputStreamPtr;
+
+StripeInputStreamPtr open_stripe_read(const std::string& dit_file);
+StripeOutputStreamPtr open_stripe_write(const std::string& dit_files);
+
+std::vector<StripeInputStreamPtr> open_stripes_read(const std::vector<std::string>& dit_files) {
+    std::vector<StripeInputStreamPtr> v;
+    for(std::string f : dit_files) v.push_back(open_stripe_read(f));
+    return v;
+};
+
+std::vector<StripeOutputStreamPtr> open_stripes_write(const std::vector<std::string>& dit_files) {
+    std::vector<StripeOutputStreamPtr> v;
+    for(std::string f : dit_files) v.push_back(open_stripe_write(f));
+    return v;
+};
 
 #endif

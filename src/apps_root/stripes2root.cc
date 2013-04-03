@@ -43,7 +43,7 @@ TBranch* make_branch(StdVectorReader *reader, TTree *tree) {
 
 
 void compose_root_file(std::string name, const std::vector<std::string>& dit_files) {
-    std::vector<std::shared_ptr<StripeInputStream>> streams = open_stripes(dit_files);
+    std::vector<StripeInputStreamPtr> streams = open_stripes_read(dit_files);
 
     std::cerr << "Looking up column metadata and creating root tree..." << std::endl;
 

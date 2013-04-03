@@ -29,7 +29,7 @@ bool DataDecoder<WireFormatLite::TYPE_BYTES>::DecodeInto(std::string *data, int 
 template<WireFormatLite::FieldType type>
 bool DataDecoder<type>::DecodeInto(typename TypeFromFieldType<type>::type *data, int size) { 
     for (int i = 0; i < size; i++) {
-        if (not WireFormatLite::ReadPrimitive<typename TypeFromFieldType<type>::type, type>(_sub_stream, &data[i])) {
+        if (not WireFormatLite::ReadPrimitive<typename TypeFromFieldType<type>::type, type>(_sub_stream.get(), &data[i])) {
             return false;
         }
     }
@@ -76,7 +76,7 @@ void DataEncoder<type>::Encode(const typename TypeFromFieldType<type>::type *dat
     #define WRITE(cpptype, enumtype, wfunc) \
     case WireFormatLite::TYPE_ ## enumtype: \
         for (int i = 0; i < size; i++) { \
-            WireFormatLite::Write ## wfunc ## NoTag(data[i], _sub_stream); \
+            WireFormatLite::Write ## wfunc ## NoTag(data[i], _sub_stream.get()); \
         }\
         break;
     switch(type) {

@@ -11,7 +11,7 @@ using namespace std;
 using google::protobuf::io::CodedInputStream;
 
 std::vector<std::string> dit_files;
-std::vector<std::shared_ptr<StripeInputStream>> streams;
+std::vector<StripeInputStreamPtr> streams;
 std::vector<ZeroCopyInputStream*> metastreams;
 std::vector<MetaReader*> sreaders;
 std::vector<StdVectorReader*> readers;
@@ -44,7 +44,7 @@ void stream_all() {
         int size;
         const void *buf;
         while (streams[i]->meta->Next(&buf, &size));
-        while (streams[i]->data->GetDirectBufferPointer(&buf, &size)) streams[i]->data->Skip(size);
+        while (streams[i]->data->Next(&buf, &size));
     }
 }
 
@@ -60,7 +60,7 @@ void stream_data() {
     for (int i = 0; i < streams.size(); i++) {
         int size;
         const void *buf;
-        while (streams[i]->data->GetDirectBufferPointer(&buf, &size)) streams[i]->data->Skip(size);
+        while (streams[i]->data->Next(&buf, &size));
     }
 }
 
@@ -108,7 +108,7 @@ int main(int argc, const char ** argv) {
     for(int i = 2; i < argc; i++) {
         dit_files.push_back(argv[i]);
     }
-    streams = open_stripes(dit_files);
+    streams = open_stripes_read(dit_files);
     if (number == 0) return 0;
     read_metadata(number >= 8);
     if (number == 1) return 0;
