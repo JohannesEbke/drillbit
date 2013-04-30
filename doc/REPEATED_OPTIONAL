@@ -1,0 +1,53 @@
+Notation:
+repeated = r
+optional = o
+required = (not shown)
+(max_rl, max_dl)
+
+(0,0) = "" = single field in all events
+(0,1) = "o" = single field, some events are skimmed
+(1,1) = "or" = repeated field, no information for some events
+
+Examples with their protobuf properties:
+int EventInfo.EventNumber (optional, optional)
+float EventInfo.Truth.mc_particles.px (optional, optional, repeated, optional)
+float Muons.pt (repeated, optional)
+float Muons.tracks.pt (repeated, repeated, optional)
+float Muons.tracks.hits.x (repeated, repeated, repeated, optional)
+
+Q: How to represent Muons.tracks.hits.x if:
+* The whole event has been removed
+* The whole muon has been removed
+* The whole track has been removed
+* This hit has been removed
+* The value x was not present originally
+Necessary qualifiers:
+Muons(optional,repeated).tracks(optional,repeated).hits(optional,repeated).x(optional)
+
+Current restriction on notations:
+     = single field in all events
+r    = repeated field with info in all events
+rr   = depth-2 repeated field with full info
+rrr  = depth-3 repeated field with full info
+o    = single field, some events skimmed
+or   = repeated field, some events skimmed
+orr  = depth-2 repeated field, some events skimmed
+orrr = depth-3 repeated field, some events skimmed
+oro  = repeated field with missing values, some events skimmed
+oror = repeated field in a (repeated field with missing values), some events skimmed
+ororo= repeated field with missing values in a (repeated field with missing values), some events skimmed
+...
+
+Repetition Level 1 example ("repeated muon; optional pt;"):
+RL DL
+0  0  new event without any muons
+0  1  first muon without pt
+1  1  data of subsequent muon
+1  0  unused (propose: pt was skimmed even if it is required)
+
+
+
+
+
+
+

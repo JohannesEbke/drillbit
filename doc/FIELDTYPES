@@ -1,0 +1,17 @@
+
+Filed type/sizeof : Wiretype : Inplace conversion?
+TYPE_DOUBLE     8 : Fixed64  : yes
+TYPE_FLOAT      4 : Fixed32  : yes
+TYPE_INT64      8 : Varint   : no
+TYPE_UINT64     8 : Varint   : no
+TYPE_INT32      4 : Varint   : no
+TYPE_FIXED64    8 : Fixed64  : yes
+TYPE_FIXED32    4 : Fixed32  : yes
+TYPE_BOOL       1 : Varint   : yes(?)
+TYPE_UINT32     4 : Varint   : no
+TYPE_ENUM       4 : Varint   : no
+TYPE_SFIXED32   4 : Fixed32  : yes
+TYPE_SFIXED64   8 : Fixed64  : yes
+TYPE_SINT32     4 : Varint   : no
+TYPE_SINT64     8 : Varint   : no
+

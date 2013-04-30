@@ -1,0 +1,18 @@
+I am an ATLAS analyst, new to the collaboration. 
+I want ntuples for all data & mc which i need,
+with at least the standard variables
+but also variables X, Y and Z.
+
+I am an ATLAS analyst. I want a set of datasets of all data
+which i can skim/slim/thin from, and which i can also run over with ROOT.
+
+I am developing a new jet correction factor, but i need that one variable
+which is not in my ntuple...
+
+I have just heard of a new jet correction factor. It needs variables
+which i do not have in my ntuple. Help!
+
+I have a set of preselection requirements, and would like a ntuple with
+only data corresponding to these requirements.
+
+
