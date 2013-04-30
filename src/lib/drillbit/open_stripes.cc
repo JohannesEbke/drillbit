@@ -104,8 +104,8 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
         ditm = copy_file(dit_file+"m");
         id = new ArrayInputStream(dit.first, dit.second);
         im = new ArrayInputStream(ditm.first, ditm.second);
-        zd = get_compressed_input_stream(id, zerocc::ZLIB);
-        zm = get_compressed_input_stream(id, zerocc::ZLIB);
+        zd = get_compressed_input_stream(id, zerocc::GZIP);
+        zm = get_compressed_input_stream(im, zerocc::GZIP);
         data = zd;
         meta = zm;
         assert(data);
@@ -164,7 +164,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         fd_data = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd_data != -1);
         fstream_data = new FileOutputStream(fd_data);
-        zstream_data = get_compressed_output_stream(fstream_data, zerocc::ZLIB, 1);
+        zstream_data = get_compressed_output_stream(fstream_data, zerocc::GZIP, 1);
         data = zstream_data;
 
         // Open meta file
@@ -172,7 +172,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         fd_meta = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd_meta != -1);
         fstream_meta = new FileOutputStream(fd_meta);
-        zstream_meta = get_compressed_output_stream(fstream_meta, zerocc::ZLIB, 1);
+        zstream_meta = get_compressed_output_stream(fstream_meta, zerocc::GZIP, 1);
         meta = zstream_meta;
 
         assert(meta);
