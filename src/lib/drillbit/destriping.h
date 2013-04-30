@@ -86,6 +86,7 @@ class FieldReader {
         }
     }
     bool needs_braces() {
+        return true;
         if (not _fd) return true;
         return _fd->type() == FieldDescriptor::TYPE_MESSAGE;
     }
@@ -119,8 +120,8 @@ class ColumnReader {
     void make_fsm() {
         for(int i = 0; i < readers.size(); i++) {
             auto* reader = readers[i];
-            unsigned int max_level = reader->_max_repetition_level;
-            std::cout << "Looking at reader " << reader->name() << ", max-repetition level " << max_level << std::endl;
+            unsigned int max_rl = reader->_max_repetition_level;
+            std::cout << "Looking at reader " << reader->name() << ", max-repetition level " << max_rl << std::endl;
             FieldReader * barrier = (i == readers.size()-1) ? FSM_END : readers[i+1]; // next field after field or final FSM state otherwise
 
             if (barrier != FSM_END) {
@@ -128,35 +129,35 @@ class ColumnReader {
             } else {
                 std::cout << "...its barrier is THE END";
             }
-            unsigned int barrier_level = 0;
+            unsigned int barrier_max_rl = 0;
             if (barrier != FSM_END) {
                 auto* lca = lowest_common_ancestor(readers[i], barrier);
-                barrier_level = lca->_max_repetition_level;
-                std::cout << "... the lca between this and the barrier is " << lca->name() << " and its level is " << barrier_level << std::endl;
+                barrier_max_rl = lca->_max_repetition_level;
+                std::cout << "... the lca between this and the barrier is " << lca->name() << " and its rl is " << barrier_max_rl << std::endl;
             }
             //for(int j = i-1; j >= 0; j--) {
             //for(int j = 0; j < i; j++) {
             for(int j = i; j >= 0; j--) {
             //for(int j = 0; j <= i; j++) {
-                if (readers[j]->_max_repetition_level > barrier_level) {
-                    std::cout << "... Reader " << readers[j]->name() << " with its level " << readers[j]->_max_repetition_level 
+                if (readers[j]->_max_repetition_level > barrier_max_rl) {
+                    std::cout << "... Reader " << readers[j]->name() << " with its max rl " << readers[j]->_max_repetition_level 
                               << " has climbed the barrier!" << std::endl;
                     auto* lca = lowest_common_ancestor(readers[j], readers[i]);
-                    unsigned int back_level = lca->_max_repetition_level;
-                    std::cout << ".... the LCA of these is " << lca->name() << " with its level " << back_level << std::endl; 
-                    fsm_transitions[std::make_pair(readers[i], back_level)] = readers[j];
+                    unsigned int back_max_rl = lca->_max_repetition_level;
+                    std::cout << ".... the LCA of these is " << lca->name() << " with its max rl " << back_max_rl << std::endl; 
+                    fsm_transitions[std::make_pair(readers[i], back_max_rl)] = readers[j];
                 }
             }
-            for(int level = barrier_level+1; level <= max_level; level++) {
-                FieldReader* &target = fsm_transitions[std::make_pair(readers[i], level)];
+            for(int rl = barrier_max_rl+1; rl <= max_rl; rl++) {
+                FieldReader* &target = fsm_transitions[std::make_pair(readers[i], rl)];
                 if (not target) {
-                    target = fsm_transitions[std::make_pair(readers[i], level-1)];
-                    std::cout << "... propagating level " << level-1 << " to level " << level << " with its target of " << target->name() << std::endl;
+                    target = fsm_transitions[std::make_pair(readers[i], rl-1)];
+                    std::cout << "... propagating rl " << rl-1 << " to rl " << rl << " with its target of " << target->name() << std::endl;
                 }
             }
-            for (int level = 0; level < barrier_level+1; level++) {
-                fsm_transitions[std::make_pair(readers[i], level)] = barrier;
-                    std::cout << "... filling hole at " << level << " with the barrier." << std::endl;
+            for (int rl = 0; rl < barrier_max_rl+1; rl++) {
+                fsm_transitions[std::make_pair(readers[i], rl)] = barrier;
+                    std::cout << "... filling hole at " << rl << " with the barrier." << std::endl;
             }
         }
         std::cout << "FSM Transitions:" << std::endl;
@@ -182,6 +183,7 @@ class ColumnReader {
         
 void end_nested_records(FieldReader* r, int level) {
     std::cout << "end_nested_records of " << r->name() << ":" << r->level() << std::endl;
+    assert(level == r->level());
     if (not r->needs_braces()) {
         record << "\"" << std::endl;
         return;
@@ -195,20 +197,21 @@ void end_nested_records(FieldReader* r, int level) {
 
 void start_nested_records(FieldReader* r, int level) {
     std::cout << "start_nested_records of " << r->name() << ":" << r->level() << std::endl;
+    assert(level == r->level());
     for (int i = 0; i < level; i++) record << " ";
     if (not r->needs_braces()) {
         record << r->short_name() << ": \"";
     } else {
-        record << r->short_name() << "{" << std::endl;
+        record << r->short_name() << " {" << std::endl;
     }
 }
 
-void MoveToLevel(int newLevel, FieldReader * nextReader) {
+void MoveToLevel(int new_dl, FieldReader * nextReader) {
     auto* lca = lowest_common_ancestor(last_reader, nextReader);
-    int via_level = lca->level(); 
+    int via_level = lca->level();
     FieldReader * r = last_reader;
     int current_level = last_reader->level();
-    std::cout << "Moving from " << last_reader->name() << " to level " << newLevel << " of the reader " 
+    std::cout << "Moving from " << last_reader->name() << " to dl " << new_dl << " of the reader " 
               << nextReader->name() << " via " << lca->name() << " level " << via_level << std::endl;
     
     while (r->level() > via_level) {
@@ -216,11 +219,15 @@ void MoveToLevel(int newLevel, FieldReader * nextReader) {
         r = r->_parent;
     }
     current_level = r->level();
-    while (r->level() < newLevel) {
+    //while (r->definition_level() < new_dl) {
+    while (r != nextReader) {
         current_level++;
-        r = nextReader;
-        for (int i = 0; i < (nextReader->level() - current_level); i++) r = r->_parent;
-        start_nested_records(r, r->level());
+        FieldReader * r1 = nextReader;
+        for (int i = 0; i < (nextReader->level() - current_level); i++) r1 = r1->_parent;
+        assert(r1->level() == current_level);
+        if (r1->definition_level() > new_dl) break;
+        r = r1;
+        start_nested_records(r1, r1->level());
     }
     last_reader = r;
 }
@@ -260,12 +267,11 @@ std::string AssembleRecord(ColumnReader * creaders) {
         bool value_is_not_null = (l.definition_level == reader->definition_level());
         if (value_is_not_null) {
             std::cout << "value is not null, moving to level " << reader->level() << std::endl;
-            //MoveToLevel(reader->definition_level(), reader);
-            MoveToLevel(reader->level(), reader);
+            MoveToLevel(reader->definition_level(), reader);
+            //MoveToLevel(reader->level(), reader);
             //for (int i = 0; i < reader->level(); i++) record << " ";
             //record << reader->short_name()  << ": " << l.value << std::endl;
-            record << l.value;
-           // << std::endl;
+            record << l.value << std::endl;
             std::cout << "Value: " << reader->short_name()  << ": " << l.value << std::endl;
         } else {
             std::cout << "Value is null!" << std::endl;
@@ -285,9 +291,10 @@ std::string AssembleRecord(ColumnReader * creaders) {
             break;
         }
         std::cout << reader << std::endl;
-        std::cout << "FSM transition to reader " << reader->name() << ", returning to level " << reader->definition_level() << std::endl;
-        //ReturnToLevel(reader->definition_level());
-        ReturnToLevel(reader->level(), reader);
+        std::cout << "FSM transition to reader " << reader->name() << ", returning to level " << reader->level() << std::endl;
+        //ReturnToLevel(reader->definition_level(), reader);
+        //ReturnToLevel(reader->level(), reader);
+        MoveToLevel(reader->definition_level(), reader);
         //ReturnToLevel(l.definition_level);
     }
     std::cout << "Finished record, returning to level 0." << std::endl;
