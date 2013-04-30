@@ -17,11 +17,13 @@
 using google::protobuf::io::FileInputStream;
 using google::protobuf::io::ArrayInputStream;
 using zerocc::GzipInputStream;
+using zerocc::AbstractCompressedInputStream;
 using google::protobuf::io::ZeroCopyInputStream;
 using google::protobuf::io::CodedInputStream;
 
 using google::protobuf::io::FileOutputStream;
 using zerocc::GzipOutputStream;
+using zerocc::AbstractCompressedOutputStream;
 using google::protobuf::io::ZeroCopyOutputStream;
 using google::protobuf::io::CodedOutputStream;
 
@@ -102,8 +104,8 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
         ditm = copy_file(dit_file+"m");
         id = new ArrayInputStream(dit.first, dit.second);
         im = new ArrayInputStream(ditm.first, ditm.second);
-        zd = new GzipInputStream(id);
-        zm = new GzipInputStream(im);
+        zd = get_compressed_input_stream(id, zerocc::ZLIB);
+        zm = get_compressed_input_stream(id, zerocc::ZLIB);
         data = zd;
         meta = zm;
         assert(data);
@@ -122,7 +124,7 @@ class StripeInputImplCompressedCopy : public StripeInputStream {
  private:
     std::pair<void*,size_t> dit, ditm;
     ArrayInputStream *id, *im;
-    GzipInputStream *zd, *zm;
+    AbstractCompressedInputStream *zd, *zm;
 };
 
 
@@ -162,7 +164,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         fd_data = open(fn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd_data != -1);
         fstream_data = new FileOutputStream(fd_data);
-        zstream_data = new GzipOutputStream(fstream_data, options);
+        zstream_data = get_compressed_output_stream(fstream_data, zerocc::ZLIB, 1);
         data = zstream_data;
 
         // Open meta file
@@ -170,7 +172,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
         fd_meta = open(mfn.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
         assert(fd_meta != -1);
         fstream_meta = new FileOutputStream(fd_meta);
-        zstream_meta = new GzipOutputStream(fstream_meta, options);
+        zstream_meta = get_compressed_output_stream(fstream_meta, zerocc::ZLIB, 1);
         meta = zstream_meta;
 
         assert(meta);
@@ -195,7 +197,7 @@ class StripeOutputImplCompressed : public StripeOutputStream {
     std::string fn;
     int fd_data, fd_meta;
     FileOutputStream *fstream_data, *fstream_meta;
-    GzipOutputStream *zstream_data, *zstream_meta;
+    AbstractCompressedOutputStream *zstream_data, *zstream_meta;
 };
 
 std::shared_ptr<StripeOutputStream> open_stripe_write(const string& dit_file) {
