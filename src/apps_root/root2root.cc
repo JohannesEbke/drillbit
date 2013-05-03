@@ -10,17 +10,19 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    TChain in("Event");
+    //TChain in("Event");
+    TChain in("photon");
     
     for (int i = 1; i < argc; i++)
         in.Add(argv[i]);
     
     TFile fout("fout.root", "recreate");
-    TTree *out = in.CloneTree(0);
-    out->SetBasketSize("*", 1024*1024);
+    TTree *out = in.CloneTree();
+    //TTree *out = in.CloneTree(0);
+    //out->SetBasketSize("*", 1024*1024);
     
-    auto n = out->CopyEntries(&in);
-    std::cout << "Copied " << n << " entries" << std::endl;
+    //auto n = out->CopyEntries(&in);
+    //std::cout << "Copied " << n << " entries" << std::endl;
     
     out->Write();
         

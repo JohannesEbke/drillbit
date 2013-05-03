@@ -42,5 +42,5 @@ void MetaWriter::start(ZeroCopyOutputStream *meta, const StripeInfo &info) {
 }
 
 MetaWriter::~MetaWriter() {
-    _meta->BackUp(_buffer_end - _buffer);
+    if (_buffer_end != _buffer)  _meta->BackUp(_buffer_end - _buffer);
 }

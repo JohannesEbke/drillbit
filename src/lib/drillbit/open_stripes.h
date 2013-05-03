@@ -29,18 +29,18 @@ class StripeOutputStream {
 typedef std::shared_ptr<StripeInputStream> StripeInputStreamPtr;
 typedef std::shared_ptr<StripeOutputStream> StripeOutputStreamPtr;
 
-StripeInputStreamPtr open_stripe_read(const std::string& dit_file);
-StripeOutputStreamPtr open_stripe_write(const std::string& dit_files);
+StripeInputStreamPtr open_stripe_read(const std::string& dit_file, bool compress=true);
+StripeOutputStreamPtr open_stripe_write(const std::string& dit_files, bool compress=true);
 
-std::vector<StripeInputStreamPtr> open_stripes_read(const std::vector<std::string>& dit_files) {
+std::vector<StripeInputStreamPtr> open_stripes_read(const std::vector<std::string>& dit_files, bool compress=true) {
     std::vector<StripeInputStreamPtr> v;
-    for(std::string f : dit_files) v.push_back(open_stripe_read(f));
+    for(std::string f : dit_files) v.push_back(open_stripe_read(f, compress));
     return v;
 };
 
-std::vector<StripeOutputStreamPtr> open_stripes_write(const std::vector<std::string>& dit_files) {
+std::vector<StripeOutputStreamPtr> open_stripes_write(const std::vector<std::string>& dit_files, bool compress=true) {
     std::vector<StripeOutputStreamPtr> v;
-    for(std::string f : dit_files) v.push_back(open_stripe_write(f));
+    for(std::string f : dit_files) v.push_back(open_stripe_write(f, compress));
     return v;
 };
 

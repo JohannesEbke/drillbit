@@ -58,7 +58,13 @@ Random Ideas
 ------------
 [since metadata can be just another column, we includes stuff like the cross-section in the data store]
 [represent "sym/hard"links in a zipfile? For example by having the record header point to the same bytes. That might be one way of deduplicating the ditm]
+[Sub-float packing]
 
 The Databases
 -------------
 * Record which variables are requested
+
+Merging
+-------
+* MR Sort?
+
