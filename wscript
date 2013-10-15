@@ -38,7 +38,7 @@ def configure(conf):
         if os.system("git submodule update --init") != 0:
             conf.fatal("Could not initialize necessary submodules!")
     conf.load(packages)
-    conf.load("lua protoc dynasm", tooldir="waf-tools")
+    conf.load("protoc", tooldir="waf-tools")
     conf.get_cc_version(conf.env.CXX)
     cxxexe = os.path.basename(str(conf.env.CXX))
     if cxxexe.startswith("g++") and conf.env.CC_VERSION < ("4","6"):
@@ -56,7 +56,7 @@ def build(bld):
     from os.path import join as pjoin
 
     bld.load(packages + " print_commands")
-    bld.load("lua protoc dynasm", tooldir="waf-tools")
+    bld.load("protoc", tooldir="waf-tools")
 
     bld.stlib(source=getsrc(bld, "src/lib/zerocc"),
             target="zerocc",
