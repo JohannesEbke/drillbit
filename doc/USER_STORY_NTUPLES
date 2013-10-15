@@ -1,0 +1,53 @@
+
+User story for the NTuple train:
+
+ - I want to create stripes from the datasets <ds1>, which should be saved in the set of datasets <ds2>
+ - I want to be able to run a ROOT analysis on some stripes in <ds2>
+ - In that analysis, i want to be able to write out a new column, it should be stored in <ds3>
+ - I want to be able to run a ROOT analysis on some stripes in <ds2> combined with the stripe in <ds3>
+
+This should hold for all processing:
+ - Any corruption in the input files must be detected
+ - Any mismatch between input columns must be detected
+
+
+------------------------------------------------------------
+
+Components of the solution:
+
+ - Generate size<ds1> jobs:
+    - direct access/fex/dCache/PANDA stagein of <ds1.1>
+    - root2stripes <ds1.1.1> <ds1.1.2> ...
+    - zip -r0 dit
+    - dq2_put/PANDA stageout
+
+ - Generate size<dataset> jobs
+    - resolve required stripes specified as versions into files <dataset>
+    - gain direct access to required files in <dataset>
+    - gain direct write access to files in <dataset> if possible
+    - run code
+    - upload result if no direct access was possible
+
+Additional Goal:
+ Multiple jobs for a single column, which all process subsets of the column
+ This needs jump-seeks into columns for X > 1
+
+Job archetypes:
+ - 1 ROOT file -> N Columns 
+ - M columns -> 1 ROOT file
+ - M columns -> N columns
+
+Nomenclature:
+ - SplitUID: Unique ID for each algorithm which produces a variable number of objects.
+   Has a string "explanation" which is embedded in the file, but should also be saved centrally
+   with more information on what happened and what algorithm was run.
+   If the tuple of SplitUIDs is not equal, the columns are probably incompatible.
+   [SplitUID1 : "ATLAS runs", SplitUID2 : "ATLAS muon stream events"]
+   [SplitUID1 : "ATLAS runs", SplitUID2 : "ATLAS muon stream events", SplitUID3: "Muons from the MuID algorithm"]
+
+ - BlockInfo: Information on the events contained in this block
+   - Starting run+event number of the original source
+   - Total events in original source
+   - Events that have been skipped at the beginning
+   - # Events that have been included in this file
+
