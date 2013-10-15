@@ -48,6 +48,7 @@ void compose_root_file(std::string name, const std::vector<std::string>& dit_fil
     std::cerr << "Looking up column metadata and creating root tree..." << std::endl;
 
     TFile f(name.c_str(), "RECREATE");
+    f.SetCompressionLevel(9);
     TTree * tree = new TTree("composed", "Composed Tree");
 
     std::vector<StdVectorReader*> readers;
