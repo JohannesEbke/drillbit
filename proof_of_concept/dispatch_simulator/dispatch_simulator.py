@@ -14,23 +14,19 @@ class DirectoryDitPack(object):
 
     def next_reader(self, column):
         self._current_tablet_offset[column] += 1
-        return "Pack_{}_Reader_of_{}_in_{}".format(hash(self)%100000,
-                column, self.tablets[self._current_tablet_offset[column]])
+        return (id(self), column, self.tablets[self._current_tablet_offset[column]])
     
     def skip_next_reader(self, column):
         self._current_tablet_offset[column] += 1
 
-    def __hash__(self):
-        me = (self._ditfiles, self.tablets, self.columns)
-        x = tuple(map(tuple, me))
-        return hash(x)
 
 class EmptyDitPack(DirectoryDitPack):
     def __init__(self, columns, tablets):
         self.columns, self.tablets = columns, tablets
-        self._ditfiles = ["missingdata({0}, {1})".format(tablets, c)
-                        for c in columns]
+        self._ditfiles = ["foo"]#["missingdata({0}, {1})".format(tablets, c)
+                                #for c in columns]
         self._current_tablet_offset = defaultdict(lambda: -1)
+
 
 class DitPackSet(object):
     def __init__(self, packs):
@@ -68,13 +64,13 @@ class DitPackSet(object):
 
     def add(self, pack):
         for column in pack.columns:
-            self.packset_for_column[column] = set((fp))
-        self.columnset_for_packset[frozenset((fp))] = frozenset(columnset)
+            self.packset_for_column[column] = set((pack))
+        self.columnset_for_packset[frozenset((pack))] = frozenset(pack.columns)
     
     def add_missing(self):
         for columnset, tablets in self.missing_tablets_by_columnset():
-            print "Missing tablet ids {0} for {1}".format(tablets, sorted(columns))
-            fp = EmptyDitPack(columns, tablets)
+            print "Missing tablet ids {0} for {1}".format(tablets, sorted(columnset))
+            fp = EmptyDitPack(columnset, tablets)
             self.add(fp)
 
     def ordered_packs_by_columnset(self):
@@ -105,10 +101,3 @@ class DitPackSet(object):
                     else:
                         raise Exception("Missing Tablet {0} in columnset {1}".format(tablet, columnset))
             yield (tablet, readers)
-
-
-def main():
-    test_simple()
-
-if __name__ == "__main__":
-    main()
