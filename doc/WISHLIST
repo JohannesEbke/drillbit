@@ -1,0 +1,2 @@
+* A column writer should support accepting a metadata column that should be identical to the one written, and raise an error otherwise.
+
