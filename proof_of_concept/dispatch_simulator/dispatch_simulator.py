@@ -3,7 +3,6 @@
 from collections import defaultdict
 from glob import glob
 from os.path import basename, dirname, join as pjoin
-from pprint import pprint
 
 
 class DirectoryDitPack(object):
@@ -15,7 +14,8 @@ class DirectoryDitPack(object):
 
     def next_reader(self, column):
         self._current_tablet_offset[column] += 1
-        return "Reader_"+self._ditfiles[self._current_tablet_offset[column]]
+        return "Pack_{}_Reader_of_{}_in_{}".format(hash(self)%100000,
+                column, self.tablets[self._current_tablet_offset[column]])
     
     def skip_next_reader(self, column):
         self._current_tablet_offset[column] += 1
@@ -103,23 +103,12 @@ class DitPackSet(object):
                         for column in columnset:
                             pack.skip_next_reader(column)
                     else:
-                        raise Exception("Missing Block {0} in columnset {1}".format(tablet, columnset))
+                        raise Exception("Missing Tablet {0} in columnset {1}".format(tablet, columnset))
             yield (tablet, readers)
 
+
 def main():
-    #input_packs = [DictionaryDitPack(g) for g in glob("ditsplit/?") + glob("ditsplit/??")]
-    #input_packs.append(DictionaryDitPack("ditsplit"))
-
-    # 
-
-    columns = ["Column_{}".format(i) for i in range(10)]
-    tablets = ["Tablet_{}".format(i) for i in range(10)]
-    input_packs = [EmptyDitPack(columns, tablets)]
-
-    packset = DitPackSet(input_packs)
-    for tablet, readers in packset.readers_by_tablet():
-        print tablet
-        pprint(sorted(readers))
+    test_simple()
 
 if __name__ == "__main__":
     main()
