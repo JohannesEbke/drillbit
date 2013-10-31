@@ -24,8 +24,16 @@ def count_stuff(filename):
                 counts['files:' + tag] += x[4]
                 if x[6]:
                     counts['events.in:' + tag] += x[6]
+                    counts['events.with.duplicates'] += x[6]
                 if x[5]:
                     counts['filesize:' + tag] += x[5]
+                    counts['total.filesize'] += x[5]
+                    if tag.startswith('merge'):
+                        counts['total.merged.filesize'] += x[5]
+                    if tag.startswith('physics'):
+                        counts['total.physics.filesize'] += x[5]
+                    if tag.startswith('recon'):
+                        counts['total.recon.filesize'] += x[5]
     return dict(counts)
 
 def get_events_in_files(filename):

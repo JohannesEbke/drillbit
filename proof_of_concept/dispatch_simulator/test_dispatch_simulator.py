@@ -48,8 +48,24 @@ def test_multi_massive():
             print i, tablet
             pass
 
+def test_many_massive():
+    input_packs = []
+    for i in range(10):
+        for j in range(10000):
+            if i == 3 and j == 1234:
+                input_packs.append(EmptyDitPack(as_cols(range(i*100+1,  (i+1)*100)), as_tabs(range(10*j, 10*(j+1)))))
+            else:
+                input_packs.append(EmptyDitPack(as_cols(range(i*100,  (i+1)*100)), as_tabs(range(10*j, 10*(j+1)))))
+    packset = DitPackSet(input_packs)
+
+    for i, (tablet, readers) in enumerate(packset.readers_by_tablet()):
+        if i%100000 == 0:
+            print i, tablet
+            pass
+
+
 def main():
-    test_multi_massive()
+    test_many_massive()
 
 if __name__ == "__main__":
     main()
