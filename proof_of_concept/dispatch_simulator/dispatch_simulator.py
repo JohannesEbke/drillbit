@@ -109,3 +109,6 @@ class DitPackSet(object):
                     else:
                         raise Exception("Missing Tablet {0} in columnset {1}".format(tablet, columnset))
             yield (tablet, readers)
+
+if __name__ == "__main__":
+    print "Run 'time python test_dispatch_simulator.py' for a demonstration"
