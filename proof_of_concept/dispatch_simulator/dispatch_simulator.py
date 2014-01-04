@@ -111,4 +111,4 @@ class DitPackSet(object):
             yield (tablet, readers)
 
 if __name__ == "__main__":
-    print "Run 'time python test_dispatch_simulator.py' for a demonstration"
+    print "Run './test_dispatch_simulator.py' for a demonstration"

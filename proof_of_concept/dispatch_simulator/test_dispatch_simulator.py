@@ -2,6 +2,7 @@
 
 from dispatch_simulator import DitPackSet, EmptyDitPack
 from pprint import pprint
+from time import time
 
 def as_cols(lst):
     return ["Column_{}".format(i) for i in lst]
@@ -64,6 +65,7 @@ def test_many_massive():
     print "Expected: Warnings about 10 tablets missing for one column, and 1 tablet missing for 1 column."
     print "-"*80
 
+    start_time = time()
     for i in range(COLUMN_GROUPS):
         common_columns = as_cols(range(i*COLUMNS_PER_FILE,  (i+1)*COLUMNS_PER_FILE))
         for j in range(TABLET_GROUPS):
@@ -85,6 +87,9 @@ def test_many_massive():
     for i, (tablet, readers) in enumerate(packset.readers_by_tablet()):
         # Dispatch one job here
         pass
+    end_time = time()
+
+    print "Dispatching took {:.03} seconds.".format(end_time - start_time)
 
 
 def main():
