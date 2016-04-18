@@ -4,7 +4,7 @@ Drillbit
 Poster
 ------
 
-<http://www.ebke.org/drillbit_poster_chep2013.pdf>
+<https://github.com/JohannesEbke/drillbit/raw/master/drillbit_poster_chep2013.pdf>
 
 Abstract
 --------
